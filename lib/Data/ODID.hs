@@ -6,7 +6,10 @@ module Data.ODID
   , UA(..)
   ) where
 
+import Data.Bits
 import Data.ByteString.Lazy (ByteString)
+import Data.Word
+import Numeric
 import Prettyprinter
 
 data ODID = ODID
@@ -53,3 +56,29 @@ instance Pretty OpStatus where
     RemoteIDSystemFailure -> "Remote ID System Failure"
     OpStatusRsvd -> "Reserved"
     _ -> viaShow s
+
+data MsgType = BasicID | Location | Auth | SelfID | System | OperatorID | Pack
+  deriving (Eq, Read, Show)
+
+instance Pretty MsgType where
+  pretty = viaShow
+
+readMsgType :: Word8 -> Either String MsgType
+readMsgType n = case n of
+  0x0 -> Right BasicID
+  0x1 -> Right Location
+  0x2 -> Right Auth
+  0x3 -> Right SelfID
+  0x4 -> Right System
+  0x5 -> Right OperatorID
+  0xF -> Right Pack
+  _   -> Left $ "failed to read msg type 0x" ++ showHex n ""
+
+data MsgHdr = MsgHdr{ msgType :: MsgType, msgVer :: Integer }
+  deriving (Eq, Read, Show)
+
+instance Pretty MsgHdr where
+  pretty (MsgHdr t v) = pretty t <+> "v" <> pretty v
+
+mkMsgHdr :: Word8 -> Either String MsgHdr
+mkMsgHdr w8 = MsgHdr <$> readMsgType (w8 `shiftR` 4) <*> pure (fromIntegral $ w8 .&. 0xF)
