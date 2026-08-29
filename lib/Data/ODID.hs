@@ -6,6 +6,7 @@ module Data.ODID
   , UA(..)
   ) where
 
+import Data.Binary.Get
 import Data.Bits
 import Data.ByteString.Lazy (ByteString)
 import Data.Word
@@ -82,3 +83,9 @@ instance Pretty MsgHdr where
 
 mkMsgHdr :: Word8 -> Either String MsgHdr
 mkMsgHdr w8 = MsgHdr <$> readMsgType (w8 `shiftR` 4) <*> pure (fromIntegral $ w8 .&. 0xF)
+
+data BasicIDMsgRaw = BasicIDMsgRaw Word8 ByteString
+  deriving (Eq, Read, Show)
+
+readBasicIDMsgRaw :: Get BasicIDMsgRaw
+readBasicIDMsgRaw = liftA2 BasicIDMsgRaw getWord8 (getLazyByteString 20) <* getByteString 3

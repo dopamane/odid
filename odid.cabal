@@ -21,6 +21,7 @@ library
   exposed-modules:  Data.ODID
   build-depends:
     base < 5,
+    binary,
     bytestring,
     prettyprinter
 
