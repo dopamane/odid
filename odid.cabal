@@ -21,7 +21,8 @@ library
   exposed-modules:  Data.ODID
   build-depends:
     base < 5,
-    bytestring
+    bytestring,
+    prettyprinter
 
 executable odid
   default-language: Haskell2010
