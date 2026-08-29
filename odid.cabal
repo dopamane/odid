@@ -1,0 +1,51 @@
+cabal-version:      3.0
+name:               odid
+version:            0.1.0.0
+synopsis:           Open Drone ID
+-- description:
+homepage:           github.com/dopamane/odid
+license:            MIT
+license-file:       LICENSE
+author:             dopamane
+maintainer:         dwc1295@gmail.com
+-- copyright:
+category:           Data
+build-type:         Simple
+extra-doc-files:    CHANGELOG.md
+-- extra-source-files:
+
+common warnings
+    ghc-options: -Wall
+
+library
+    import:           warnings
+    exposed-modules:  MyLib
+    -- other-modules:
+    -- other-extensions:
+    build-depends:    base ^>=4.20.2.0
+    hs-source-dirs:   lib
+    default-language: Haskell2010
+
+executable odid
+    import:           warnings
+    main-is:          Main.hs
+    -- other-modules:
+    -- other-extensions:
+    build-depends:
+        base ^>=4.20.2.0,
+        odid
+
+    hs-source-dirs:   exe
+    default-language: Haskell2010
+
+test-suite odid-test
+    import:           warnings
+    default-language: Haskell2010
+    -- other-modules:
+    -- other-extensions:
+    type:             exitcode-stdio-1.0
+    hs-source-dirs:   test
+    main-is:          Main.hs
+    build-depends:
+        base ^>=4.20.2.0,
+        odid
