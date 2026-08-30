@@ -107,7 +107,7 @@ data BasicIDMsg = BasicIDMsg
 getBasicIDMsg :: Get BasicIDMsg
 getBasicIDMsg = do
   w8     <- getWord8
-  idType <- either fail return $ readIDType $ w8 `shiftR` 4
+  idType <- either fail return $ readIDType $ fromIntegral $ w8 `shiftR` 4
   uatype <- either fail return $ readUAType $ fromIntegral $ w8 .&. 0xF
   uasID  <- BS.takeWhile (/= 0x00) <$> getLazyByteString 20 <* getByteString 3
   return $ BasicIDMsg idType uatype uasID
@@ -116,16 +116,12 @@ data Msg = Msg{ msgHdr :: MsgHdr, msgBdy :: MsgBdy }
   deriving (Eq, Read, Show)
 
 data IDType = IDTypeNone | SerialNum | CAARegID | UTMUUID | SpecificSessionID
-  deriving (Eq, Read, Show)
+  deriving (Eq, Enum, Read, Show)
 
-readIDType :: (Eq a, Num a, Show a) => a -> Either String IDType
-readIDType n = case n of
-  0 -> Right IDTypeNone
-  1 -> Right SerialNum
-  2 -> Right CAARegID
-  3 -> Right UTMUUID
-  4 -> Right SpecificSessionID
-  _ -> Left $ "faild to read ID type " ++ show n
+readIDType :: Int -> Either String IDType
+readIDType n
+  | n >= 0 && n < 5 = Right $ toEnum n
+  | otherwise = Left $ "failed to read ID type " ++ show n
 
 type UASID = ByteString
 
