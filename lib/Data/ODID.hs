@@ -48,9 +48,9 @@ instance Pretty UAType where
     GroundObstacle -> "Ground Obstacle"
     Other -> "Other"
 
-readUAType :: (Eq a, Integral a, Num a, Show a) => a -> Either String UAType
+readUAType :: Int -> Either String UAType
 readUAType t
-  | t >= 0 && t < 16 = Right $ toEnum $ fromIntegral t
+  | t >= 0 && t < 16 = Right $ toEnum t
   | otherwise = Left $ "failed to read UAType " ++ show t
 
 -- | Operational status
@@ -108,7 +108,7 @@ getBasicIDMsg :: Get BasicIDMsg
 getBasicIDMsg = do
   w8     <- getWord8
   idType <- either fail return $ readIDType $ w8 `shiftR` 4
-  uatype <- either fail return $ readUAType $ w8 .&. 0xF
+  uatype <- either fail return $ readUAType $ fromIntegral $ w8 .&. 0xF
   uasID  <- BS.takeWhile (/= 0x00) <$> getLazyByteString 20 <* getByteString 3
   return $ BasicIDMsg idType uatype uasID
 
@@ -148,3 +148,8 @@ data HorizAcc
   | LT1M    -- ^ <1 m
   | HorizAccRsvd -- ^ Reserved
   deriving (Eq, Enum, Read, Show)
+
+readHorizAcc :: Int -> Either String HorizAcc
+readHorizAcc n
+  | n >= 0 && n < 14 = Right $ toEnum n
+  | otherwise = Left $ "horiz acc out of bounds " ++ show n
