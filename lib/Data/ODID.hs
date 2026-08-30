@@ -145,6 +145,23 @@ data HorizAcc
   | HorizAccRsvd -- ^ Reserved
   deriving (Eq, Enum, Read, Show)
 
+instance Pretty HorizAcc where
+  pretty a = case a of
+    GT10NM  -> ">=18.52 km (10 NM) or Unknown"
+    LT10NM  -> "<18.52 km (10 NM)"
+    LT4NM   -> "<7.408 km (4 NM)"
+    LT2NM   -> "<3.704 km (2 NM)"
+    LT1NM   -> "<1852 m (1 NM)"
+    LT05NM  -> "<926 m (0.5 NM)"
+    LT03NM  -> "<555.6 m (0.3 NM)"
+    LT01NM  -> "<185.2 m (0.1 NM)"
+    LT005NM -> "<92.6 m (0.05 NM)"
+    LT30M   -> "<30 m"
+    LT10M   -> "<10 m"
+    LT3M    -> "<3 m"
+    LT1M    -> "<1 m"
+    HorizAccRsvd -> "Reserved"
+
 readHorizAcc :: Int -> Either String HorizAcc
 readHorizAcc n
   | n >= 0 && n < 14 = Right $ toEnum n
