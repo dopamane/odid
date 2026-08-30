@@ -167,3 +167,9 @@ readHorizAcc n
   | n >= 0 && n < 14 = Right $ toEnum n
   | n == 14 || n == 15 = Right HorizAccRsvd
   | otherwise = Left $ "horiz acc out of bounds " ++ show n
+
+data OperatorIDMsg = OperatorIDMsg{opIDType :: OpIDType, opID :: ByteString}
+  deriving (Eq, Read, Show)
+
+data OpIDType = OpID | OpIDRsvd | OpIDPriv Int
+  deriving (Eq, Read, Show)
