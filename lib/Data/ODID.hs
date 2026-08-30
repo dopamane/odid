@@ -148,4 +148,5 @@ data HorizAcc
 readHorizAcc :: Int -> Either String HorizAcc
 readHorizAcc n
   | n >= 0 && n < 14 = Right $ toEnum n
+  | n == 14 || n == 15 = Right HorizAccRsvd
   | otherwise = Left $ "horiz acc out of bounds " ++ show n
