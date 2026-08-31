@@ -173,3 +173,19 @@ data OperatorIDMsg = OperatorIDMsg{opIDType :: OpIDType, opID :: ByteString}
 
 data OpIDType = OpID | OpIDRsvd | OpIDPriv Int
   deriving (Eq, Read, Show)
+
+data ClassType = ClassTypeUndeclared | EuroUnion | ClassTypeRsvd
+
+data EUClassType = Undefined | Open | Specific | Certified | EUClassTypeRsvd
+
+-- | Speed Accuracy. This is the same enumeration scale and values from ADS-B NACv. 95 % accuracy bound.
+data SpeedAcc = GTE10MS | LT10MS | LT3MS | LT1MS | LT03MS | SpeedAccRsvd
+
+instance Pretty SpeedAcc where
+  pretty a = case a of
+    GTE10MS -> ">=10 m/s or Unknown"
+    LT10MS -> "<10 m/s"
+    LT3MS -> "<3 m/s"
+    LT1MS -> "<1 m/s"
+    LT03MS -> "<0.3 m/s"
+    SpeedAccRsvd -> "Reserved"
