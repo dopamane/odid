@@ -178,7 +178,31 @@ data ClassType = ClassTypeUndeclared | EuroUnion | ClassTypeRsvd
 
 data EUClassType = Undefined | Open | Specific | Certified | EUClassTypeRsvd
 
--- | Speed Accuracy. This is the same enumeration scale and values from ADS-B NACv. 95 % accuracy bound.
+-- | Vertical Accuracy. This is the GVA enumeration from ADS-B. Values 4–6 were added for
+-- UAs. 95 % accuracy bound.
+data VertAcc
+  = VertAccGTE150M -- ^ >=150 m or Unknown
+  | VertAccLT150M-- ^ <150 m
+  | VertAccLT45M -- ^ <45 m
+  | VertAccLT25M -- ^ <25 m
+  | VertAccLT10M -- ^ <10 m
+  | VertAccLT3M -- ^ <3 m
+  | VertAccLT1M -- ^ <1 m
+  | VertAccRsvd
+
+instance Pretty VertAcc where
+  pretty a = case a of
+    VertAccGTE150M -> ">=150 m"
+    VertAccLT150M  -> "<150 m"
+    VertAccLT45M   -> "<45 m"
+    VertAccLT25M   -> "<25 m"
+    VertAccLT10M   -> "<10 m"
+    VertAccLT3M    -> "<3 m"
+    VertAccLT1M    -> "<1 m"
+    VertAccRsvd    -> "Reserved"
+
+-- | Speed Accuracy. This is the same enumeration scale and values from ADS-B NACv.
+-- 95 % accuracy bound.
 data SpeedAcc = GTE10MS | LT10MS | LT3MS | LT1MS | LT03MS | SpeedAccRsvd
 
 instance Pretty SpeedAcc where
