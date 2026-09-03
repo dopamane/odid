@@ -92,10 +92,18 @@ instance Pretty MsgHdr where
 mkMsgHdr :: Word8 -> Either String MsgHdr
 mkMsgHdr w8 = MsgHdr <$> readMsgType (w8 `shiftR` 4) <*> pure (fromIntegral $ w8 .&. 0xF)
 
-data MsgBdy
-  = BasicID BasicIDMsg
-  | SelfID
+data MsgBdy = BasicIDBdy BasicIDMsg | LocBdy | AuthBdy | SelfIDBdy | SystemBdy | OperatorIDBdy | PackBdy
   deriving (Eq, Read, Show)
+
+getMsgBdy :: MsgHdr -> Get MsgBdy
+getMsgBdy hdr = case msgType hdr of
+  BasicIDTy -> BasicIDBdy <$> getBasicIDMsg
+  Location -> return LocBdy
+  Auth -> return AuthBdy
+  SelfIDTy -> return SelfIDBdy
+  System -> return SystemBdy
+  OperatorID -> return OperatorIDBdy
+  Pack -> return PackBdy
 
 data BasicIDMsg = BasicIDMsg
   { basicIDType :: IDType
@@ -213,3 +221,6 @@ instance Pretty SpeedAcc where
     LT1MS -> "<1 m/s"
     LT03MS -> "<0.3 m/s"
     SpeedAccRsvd -> "Reserved"
+
+-- | Operator location source type
+data OpLocSrc = Takeoff | Dynamic | Fixed
