@@ -89,6 +89,9 @@ data MsgHdr = MsgHdr{ msgType :: MsgType, msgVer :: Integer }
 instance Pretty MsgHdr where
   pretty (MsgHdr t v) = pretty t <+> "v" <> pretty v
 
+getMsgHdr :: Get MsgHdr
+getMsgHdr = either fail return . mkMsgHdr =<< getWord8
+
 mkMsgHdr :: Word8 -> Either String MsgHdr
 mkMsgHdr w8 = MsgHdr <$> readMsgType (w8 `shiftR` 4) <*> pure (fromIntegral $ w8 .&. 0xF)
 
