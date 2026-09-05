@@ -126,6 +126,11 @@ getBasicIDMsg = do
 data Msg = Msg{ msgHdr :: MsgHdr, msgBdy :: MsgBdy }
   deriving (Eq, Read, Show)
 
+getMsg :: Get Msg
+getMsg = do
+  hdr <- getMsgHdr
+  Msg hdr <$> getMsgBdy hdr
+
 data IDType = IDTypeNone | SerialNum | CAARegID | UTMUUID | SpecificSessionID
   deriving (Eq, Enum, Read, Show)
 
