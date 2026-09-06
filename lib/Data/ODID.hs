@@ -7,6 +7,7 @@ module Data.ODID
   ) where
 
 import Data.Binary.Get
+import Data.Binary.Put
 import Data.Bits
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
@@ -91,6 +92,17 @@ instance Pretty MsgHdr where
 
 getMsgHdr :: Get MsgHdr
 getMsgHdr = either fail return . mkMsgHdr =<< getWord8
+
+putMsgHdr :: MsgHdr -> Put
+putMsgHdr (MsgHdr t v) = putWord8 $ tNyb `shiftL` 4 .|. fromIntegral v
+  where
+    tNyb = case t of
+      BasicIDTy  -> 0x0
+      Location   -> 0x1
+      Auth       -> 0x2
+      SelfIDTy   -> 0x3
+      System     -> 0x4
+      OperatorID -> 0x5
 
 mkMsgHdr :: Word8 -> Either String MsgHdr
 mkMsgHdr w8 = MsgHdr <$> readMsgType (w8 `shiftR` 4) <*> pure (fromIntegral $ w8 .&. 0xF)
