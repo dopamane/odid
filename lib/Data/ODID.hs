@@ -135,6 +135,14 @@ getBasicIDMsg = do
   uasID  <- BS.takeWhile (/= 0x00) <$> getLazyByteString 20 <* getByteString 3
   return $ BasicIDMsg idType uatype uasID
 
+putBasicIDMsg :: BasicIDMsg -> Put
+putBasicIDMsg (BasicIDMsg t ua uasid) = do
+  putWord8 $ idTy `shiftL` 4 .|. uaTy
+  putLazyByteString uasid -- TODO padding
+  where
+    idTy = fromIntegral $ fromEnum t
+    uaTy = fromIntegral $ fromEnum ua
+
 data Msg = Msg{ msgHdr :: MsgHdr, msgBdy :: MsgBdy }
   deriving (Eq, Read, Show)
 
