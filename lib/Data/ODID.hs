@@ -138,7 +138,8 @@ getBasicIDMsg = do
 putBasicIDMsg :: BasicIDMsg -> Put
 putBasicIDMsg (BasicIDMsg t ua uasid) = do
   putWord8 $ idTy `shiftL` 4 .|. uaTy
-  putLazyByteString uasid -- TODO padding
+  putLazyByteString uasid <> putLazyByteString (BS.replicate 20 0x00)
+  putLazyByteString $ BS.replicate 3 0x00
   where
     idTy = fromIntegral $ fromEnum t
     uaTy = fromIntegral $ fromEnum ua
