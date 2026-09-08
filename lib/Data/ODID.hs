@@ -107,7 +107,8 @@ putMsgHdr (MsgHdr t v) = putWord8 $ tNyb `shiftL` 4 .|. fromIntegral v
 mkMsgHdr :: Word8 -> Either String MsgHdr
 mkMsgHdr w8 = MsgHdr <$> readMsgType (w8 `shiftR` 4) <*> pure (fromIntegral $ w8 .&. 0xF)
 
-data MsgBdy = BasicIDBdy BasicIDMsg | LocBdy | AuthBdy | SelfIDBdy | SystemBdy | OperatorIDBdy | PackBdy
+data MsgBdy = BasicIDBdy BasicIDMsg | LocBdy | AuthBdy | SelfIDBdy | SystemBdy
+  | OperatorIDBdy OperatorIDMsg | PackBdy
   deriving (Eq, Read, Show)
 
 getMsgBdy :: MsgHdr -> Get MsgBdy
@@ -117,7 +118,7 @@ getMsgBdy hdr = case msgType hdr of
   Auth -> return AuthBdy
   SelfIDTy -> return SelfIDBdy
   System -> return SystemBdy
-  OperatorID -> return OperatorIDBdy
+  OperatorID -> OperatorIDBdy <$> getOperatorIDMsg
   Pack -> return PackBdy
 
 data BasicIDMsg = BasicIDMsg
@@ -208,8 +209,17 @@ readHorizAcc n
 data OperatorIDMsg = OperatorIDMsg{opIDType :: OpIDType, opID :: ByteString}
   deriving (Eq, Read, Show)
 
-data OpIDType = OpID | OpIDRsvd | OpIDPriv Int
+getOperatorIDMsg :: Get OperatorIDMsg
+getOperatorIDMsg =
+  OperatorIDMsg <$> readOpIDType `fmap` getWord8 <*> getLazyByteString 20 <* getByteString 3
+
+data OpIDType = OpID | OpIDRsvd | OpIDPriv Word8
   deriving (Eq, Read, Show)
+
+readOpIDType :: Word8 -> OpIDType
+readOpIDType 0 = OpID
+readOpIDType n | n >= 1 && n <= 200 = OpIDRsvd
+               | otherwise = OpIDPriv n
 
 data ClassType = ClassTypeUndeclared | EuroUnion | ClassTypeRsvd
 
