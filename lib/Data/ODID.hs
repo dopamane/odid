@@ -4,8 +4,10 @@
 module Data.ODID
   ( ODID(..), readODID, writeODID
   , UAType(..), readUAType
+  , MsgHdr(..), MsgType(..), msgTypes
   ) where
 
+import Data.Binary
 import Data.Binary.Get
 import Data.Binary.Put
 import Data.Bits
@@ -55,8 +57,8 @@ readUAType t
   | otherwise = Left $ "failed to read UAType " ++ show t
 
 -- | Operational status
-data OpStatus
-  = Undeclared | Ground | Airborne | Emergency | RemoteIDSystemFailure | OpStatusRsvd
+data OpStatus = Undeclared | Ground | Airborne | Emergency
+  | RemoteIDSystemFailure | OpStatusRsvd
   deriving (Eq, Read, Show)
 
 instance Pretty OpStatus where
@@ -67,6 +69,9 @@ instance Pretty OpStatus where
 
 data MsgType = BasicIDTy | Location | Auth | SelfIDTy | System | OperatorID | Pack
   deriving (Eq, Read, Show)
+
+msgTypes :: [MsgType]
+msgTypes = [BasicIDTy, Location, Auth, SelfIDTy, System, OperatorID, Pack]
 
 instance Pretty MsgType where
   pretty BasicIDTy = "BasicID"
@@ -84,28 +89,27 @@ readMsgType n = case n of
   0xF -> Right Pack
   _   -> Left $ "failed to read msg type 0x" ++ showHex n ""
 
-data MsgHdr = MsgHdr{ msgType :: MsgType, msgVer :: Integer }
+data MsgHdr = MsgHdr{msgVer :: Word8, msgType :: MsgType}
   deriving (Eq, Read, Show)
+
+instance Binary MsgHdr where
+  get = either fail return . mkMsgHdr =<< getWord8
+  put (MsgHdr v t) = putWord8 $ tNyb `shiftL` 4 .|. v
+    where
+      tNyb = case t of
+        BasicIDTy  -> 0x0
+        Location   -> 0x1
+        Auth       -> 0x2
+        SelfIDTy   -> 0x3
+        System     -> 0x4
+        OperatorID -> 0x5
+        Pack       -> 0xF
 
 instance Pretty MsgHdr where
   pretty (MsgHdr t v) = pretty t <+> "v" <> pretty v
 
-getMsgHdr :: Get MsgHdr
-getMsgHdr = either fail return . mkMsgHdr =<< getWord8
-
-putMsgHdr :: MsgHdr -> Put
-putMsgHdr (MsgHdr t v) = putWord8 $ tNyb `shiftL` 4 .|. fromIntegral v
-  where
-    tNyb = case t of
-      BasicIDTy  -> 0x0
-      Location   -> 0x1
-      Auth       -> 0x2
-      SelfIDTy   -> 0x3
-      System     -> 0x4
-      OperatorID -> 0x5
-
 mkMsgHdr :: Word8 -> Either String MsgHdr
-mkMsgHdr w8 = MsgHdr <$> readMsgType (w8 `shiftR` 4) <*> pure (fromIntegral $ w8 .&. 0xF)
+mkMsgHdr w8 = MsgHdr (w8 .&. 0xF) <$> readMsgType (w8 `shiftR` 4)
 
 data MsgBdy = BasicIDBdy BasicIDMsg | LocBdy | AuthBdy | SelfIDBdy | SystemBdy
   | OperatorIDBdy OperatorIDMsg | PackBdy
@@ -113,7 +117,7 @@ data MsgBdy = BasicIDBdy BasicIDMsg | LocBdy | AuthBdy | SelfIDBdy | SystemBdy
 
 getMsgBdy :: MsgHdr -> Get MsgBdy
 getMsgBdy hdr = case msgType hdr of
-  BasicIDTy -> BasicIDBdy <$> getBasicIDMsg
+  BasicIDTy -> BasicIDBdy <$> get
   Location -> return LocBdy
   Auth -> return AuthBdy
   SelfIDTy -> return SelfIDBdy
@@ -122,35 +126,31 @@ getMsgBdy hdr = case msgType hdr of
   Pack -> return PackBdy
 
 data BasicIDMsg = BasicIDMsg
-  { basicIDType :: IDType
-  , basicIDUA :: UAType
-  , basicIDUASID :: UASID
-  }
+  {basicIDType :: IDType, basicIDUA :: UAType, basicIDUASID :: UASID}
   deriving (Eq, Read, Show)
 
-getBasicIDMsg :: Get BasicIDMsg
-getBasicIDMsg = do
-  w8     <- getWord8
-  idType <- either fail return $ readIDType $ fromIntegral $ w8 `shiftR` 4
-  uatype <- either fail return $ readUAType $ fromIntegral $ w8 .&. 0xF
-  uasID  <- BS.takeWhile (/= 0x00) <$> getLazyByteString 20 <* getByteString 3
-  return $ BasicIDMsg idType uatype uasID
+instance Binary BasicIDMsg where
+  get = do
+    w8     <- getWord8
+    idType <- either fail return $ readIDType $ fromIntegral $ w8 `shiftR` 4
+    uatype <- either fail return $ readUAType $ fromIntegral $ w8 .&. 0xF
+    uasID  <- BS.takeWhile (/= 0x00) <$> getLazyByteString 20 <* getByteString 3
+    return $ BasicIDMsg idType uatype uasID
 
-putBasicIDMsg :: BasicIDMsg -> Put
-putBasicIDMsg (BasicIDMsg t ua uasid) = do
-  putWord8 $ idTy `shiftL` 4 .|. uaTy
-  putLazyByteString uasid <> putLazyByteString (BS.replicate 20 0x00)
-  putLazyByteString $ BS.replicate 3 0x00
-  where
-    idTy = fromIntegral $ fromEnum t
-    uaTy = fromIntegral $ fromEnum ua
+  put (BasicIDMsg t ua uasid) = do
+    putWord8 $ idTy `shiftL` 4 .|. uaTy
+    putLazyByteString uasid <> putLazyByteString (BS.replicate 20 0x00)
+    putLazyByteString $ BS.replicate 3 0x00
+    where
+      idTy = fromIntegral $ fromEnum t
+      uaTy = fromIntegral $ fromEnum ua
 
-data Msg = Msg{ msgHdr :: MsgHdr, msgBdy :: MsgBdy }
+data Msg = Msg{msgHdr :: MsgHdr, msgBdy :: MsgBdy}
   deriving (Eq, Read, Show)
 
 getMsg :: Get Msg
 getMsg = do
-  hdr <- getMsgHdr
+  hdr <- get
   Msg hdr <$> getMsgBdy hdr
 
 data IDType = IDTypeNone | SerialNum | CAARegID | UTMUUID | SpecificSessionID
