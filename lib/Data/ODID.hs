@@ -3,7 +3,7 @@
 -- | Open Drone ID
 module Data.ODID
   ( ODID(..), readODID, writeODID
-  , UAType(..), readUAType
+  , UAType(..)
   , MsgHdr(..), MsgType(..), msgTypes
   , BasicIDMsg(..)
   ) where
@@ -52,9 +52,9 @@ instance Pretty UAType where
     GroundObstacle -> "Ground Obstacle"
     Other -> "Other"
 
-readUAType :: Word8 -> Either String UAType
-readUAType t | t < 16 = Right $ toEnum $ fromIntegral t
-             | otherwise = Left $ "cannot read UAType " ++ show t
+getUAType :: Word8 -> Get UAType
+getUAType t | t < 16 = return $ toEnum $ fromIntegral t
+            | otherwise = fail $ "cannot read UAType " ++ show t
 
 -- | Operational status
 data OpStatus = Undeclared | Ground | Airborne | Emergency
@@ -131,8 +131,8 @@ data BasicIDMsg = BasicIDMsg
 instance Binary BasicIDMsg where
   get = do
     w8     <- getWord8
-    idType <- either fail return $ readIDType $ w8 `shiftR` 4
-    uatype <- either fail return $ readUAType $ w8 .&. 0xF
+    idType <- getIDType $ w8 `shiftR` 4
+    uatype <- getUAType $ w8 .&. 0xF
     uasID  <- getLazyByteString 20 <* getByteString 3
     return $ BasicIDMsg idType uatype uasID
 
@@ -147,17 +147,14 @@ data Msg = Msg{msgHdr :: MsgHdr, msgBdy :: MsgBdy}
   deriving (Eq, Read, Show)
 
 getMsg :: Get Msg
-getMsg = do
-  hdr <- get
-  Msg hdr <$> getMsgBdy hdr
+getMsg = get >>= \hdr -> Msg hdr <$> getMsgBdy hdr
 
 data IDType = IDTypeNone | SerialNum | CAARegID | UTMUUID | SpecificSessionID
   deriving (Bounded, Eq, Enum, Read, Show)
 
-readIDType :: Word8 -> Either String IDType
-readIDType n
-  | n < 5 = Right $ toEnum $ fromIntegral n
-  | otherwise = Left $ "cannot read ID type " ++ show n
+getIDType :: Word8 -> Get IDType
+getIDType n | n < 5 = return $ toEnum $ fromIntegral n
+            | otherwise = fail $ "cannot read ID type " ++ show n
 
 -- | Horizontal accuracy. This is the NACp enumeration from ADS-B.
 -- Value 12 was added for a more complete range for UAs. 95 % accuracy bound
