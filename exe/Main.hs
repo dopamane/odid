@@ -1,12 +1,15 @@
 module Main (main) where
 
+import Data.Binary.Get
+import qualified Data.ByteString.Lazy as BS
+import Data.ODID
 import Options.Applicative
 
 main :: IO ()
 main = do
   cli <- customExecParser prefs' pinfo
   case cli of
-    ReadODID -> putStrLn "Reading"
+    ReadODID -> print . runGet getMsg =<< BS.getContents
     WriteODID -> putStrLn "Writing"
 
 prefs' :: ParserPrefs

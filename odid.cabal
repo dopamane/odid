@@ -32,6 +32,8 @@ executable odid
   main-is:          Main.hs
   build-depends:
     base < 5,
+    binary,
+    bytestring,
     odid,
     optparse-applicative
 

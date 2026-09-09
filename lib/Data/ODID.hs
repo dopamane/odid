@@ -4,6 +4,7 @@
 module Data.ODID
   ( ODID(..), readODID, writeODID
   , UAType(..)
+  , Msg(..), getMsg
   , MsgHdr(..), MsgType(..), msgTypes
   , BasicIDMsg(..), UASID
   ) where
