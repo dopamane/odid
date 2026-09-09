@@ -5,6 +5,7 @@ module Data.ODID
   ( ODID(..), readODID, writeODID
   , UAType(..), readUAType
   , MsgHdr(..), MsgType(..), msgTypes
+  , BasicIDMsg(..)
   ) where
 
 import Data.Binary
@@ -30,7 +31,7 @@ data UAType
   = None | Aeroplane | Heli | Gyro | Hybrid | Ornith | Glider | Kite | FreeBalloon
   | CaptiveBalloon | Airship | Parachute | Rocket | TetheredPwrAircraft | GroundObstacle
   | Other
-  deriving (Eq, Enum, Read, Show)
+  deriving (Bounded, Eq, Enum, Read, Show)
 
 instance Pretty UAType where
   pretty ua = case ua of
@@ -51,10 +52,9 @@ instance Pretty UAType where
     GroundObstacle -> "Ground Obstacle"
     Other -> "Other"
 
-readUAType :: Int -> Either String UAType
-readUAType t
-  | t >= 0 && t < 16 = Right $ toEnum t
-  | otherwise = Left $ "failed to read UAType " ++ show t
+readUAType :: Word8 -> Either String UAType
+readUAType t | t < 16 = Right $ toEnum $ fromIntegral t
+             | otherwise = Left $ "cannot read UAType " ++ show t
 
 -- | Operational status
 data OpStatus = Undeclared | Ground | Airborne | Emergency
@@ -78,22 +78,22 @@ instance Pretty MsgType where
   pretty SelfIDTy = "SelfID"
   pretty t = viaShow t
 
-readMsgType :: Word8 -> Either String MsgType
-readMsgType n = case n of
-  0x0 -> Right BasicIDTy
-  0x1 -> Right Location
-  0x2 -> Right Auth
-  0x3 -> Right SelfIDTy
-  0x4 -> Right System
-  0x5 -> Right OperatorID
-  0xF -> Right Pack
-  _   -> Left $ "failed to read msg type 0x" ++ showHex n ""
-
 data MsgHdr = MsgHdr{msgVer :: Word8, msgType :: MsgType}
   deriving (Eq, Read, Show)
 
 instance Binary MsgHdr where
-  get = either fail return . mkMsgHdr =<< getWord8
+  get = do
+    w8 <- getWord8
+    MsgHdr (w8 .&. 0xF) <$> case w8 `shiftR` 4 of
+      0x0 -> return BasicIDTy
+      0x1 -> return Location
+      0x2 -> return Auth
+      0x3 -> return SelfIDTy
+      0x4 -> return System
+      0x5 -> return OperatorID
+      0xF -> return Pack
+      n   -> fail $ "cannot read msg type 0x" ++ showHex n ""
+
   put (MsgHdr v t) = putWord8 $ tNyb `shiftL` 4 .|. v
     where
       tNyb = case t of
@@ -107,9 +107,6 @@ instance Binary MsgHdr where
 
 instance Pretty MsgHdr where
   pretty (MsgHdr t v) = pretty t <+> "v" <> pretty v
-
-mkMsgHdr :: Word8 -> Either String MsgHdr
-mkMsgHdr w8 = MsgHdr (w8 .&. 0xF) <$> readMsgType (w8 `shiftR` 4)
 
 data MsgBdy = BasicIDBdy BasicIDMsg | LocBdy | AuthBdy | SelfIDBdy | SystemBdy
   | OperatorIDBdy OperatorIDMsg | PackBdy
@@ -125,6 +122,8 @@ getMsgBdy hdr = case msgType hdr of
   OperatorID -> OperatorIDBdy <$> getOperatorIDMsg
   Pack -> return PackBdy
 
+type UASID = ByteString
+
 data BasicIDMsg = BasicIDMsg
   {basicIDType :: IDType, basicIDUA :: UAType, basicIDUASID :: UASID}
   deriving (Eq, Read, Show)
@@ -132,15 +131,14 @@ data BasicIDMsg = BasicIDMsg
 instance Binary BasicIDMsg where
   get = do
     w8     <- getWord8
-    idType <- either fail return $ readIDType $ fromIntegral $ w8 `shiftR` 4
-    uatype <- either fail return $ readUAType $ fromIntegral $ w8 .&. 0xF
-    uasID  <- BS.takeWhile (/= 0x00) <$> getLazyByteString 20 <* getByteString 3
+    idType <- either fail return $ readIDType $ w8 `shiftR` 4
+    uatype <- either fail return $ readUAType $ w8 .&. 0xF
+    uasID  <- getLazyByteString 20 <* getByteString 3
     return $ BasicIDMsg idType uatype uasID
 
   put (BasicIDMsg t ua uasid) = do
     putWord8 $ idTy `shiftL` 4 .|. uaTy
-    putLazyByteString uasid <> putLazyByteString (BS.replicate 20 0x00)
-    putLazyByteString $ BS.replicate 3 0x00
+    putLazyByteString $ uasid <> BS.replicate 3 0x00
     where
       idTy = fromIntegral $ fromEnum t
       uaTy = fromIntegral $ fromEnum ua
@@ -154,14 +152,12 @@ getMsg = do
   Msg hdr <$> getMsgBdy hdr
 
 data IDType = IDTypeNone | SerialNum | CAARegID | UTMUUID | SpecificSessionID
-  deriving (Eq, Enum, Read, Show)
+  deriving (Bounded, Eq, Enum, Read, Show)
 
-readIDType :: Int -> Either String IDType
+readIDType :: Word8 -> Either String IDType
 readIDType n
-  | n >= 0 && n < 5 = Right $ toEnum n
-  | otherwise = Left $ "failed to read ID type " ++ show n
-
-type UASID = ByteString
+  | n < 5 = Right $ toEnum $ fromIntegral n
+  | otherwise = Left $ "cannot read ID type " ++ show n
 
 -- | Horizontal accuracy. This is the NACp enumeration from ADS-B.
 -- Value 12 was added for a more complete range for UAs. 95 % accuracy bound
