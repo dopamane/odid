@@ -5,7 +5,7 @@ module Data.ODID
   ( ODID(..), readODID, writeODID
   , UAType(..)
   , MsgHdr(..), MsgType(..), msgTypes
-  , BasicIDMsg(..)
+  , BasicIDMsg(..), UASID
   ) where
 
 import Data.Binary
@@ -119,7 +119,7 @@ getMsgBdy hdr = case msgType hdr of
   Auth -> return AuthBdy
   SelfIDTy -> return SelfIDBdy
   System -> return SystemBdy
-  OperatorID -> OperatorIDBdy <$> getOperatorIDMsg
+  OperatorID -> OperatorIDBdy <$> get
   Pack -> return PackBdy
 
 type UASID = ByteString
@@ -129,12 +129,10 @@ data BasicIDMsg = BasicIDMsg
   deriving (Eq, Read, Show)
 
 instance Binary BasicIDMsg where
-  get = do
-    w8     <- getWord8
-    idType <- getIDType $ w8 `shiftR` 4
-    uatype <- getUAType $ w8 .&. 0xF
-    uasID  <- getLazyByteString 20 <* getByteString 3
-    return $ BasicIDMsg idType uatype uasID
+  get = getWord8 >>= \w8 ->
+    BasicIDMsg
+      <$> getIDType (w8 `shiftR` 4) <*> getUAType (w8 .&. 0xF)
+      <*> getLazyByteString 20 <* getByteString 3
 
   put (BasicIDMsg t ua uasid) = do
     putWord8 $ idTy `shiftL` 4 .|. uaTy
@@ -199,20 +197,12 @@ readHorizAcc n
   | n == 14 || n == 15 = Right HorizAccRsvd
   | otherwise = Left $ "horiz acc out of bounds " ++ show n
 
-data OperatorIDMsg = OperatorIDMsg{opIDType :: OpIDType, opID :: ByteString}
+data OperatorIDMsg = OperatorIDMsg{opIDType :: Word8, opID :: ByteString}
   deriving (Eq, Read, Show)
 
-getOperatorIDMsg :: Get OperatorIDMsg
-getOperatorIDMsg =
-  OperatorIDMsg <$> readOpIDType `fmap` getWord8 <*> getLazyByteString 20 <* getByteString 3
-
-data OpIDType = OpID | OpIDRsvd | OpIDPriv Word8
-  deriving (Eq, Read, Show)
-
-readOpIDType :: Word8 -> OpIDType
-readOpIDType 0 = OpID
-readOpIDType n | n >= 1 && n <= 200 = OpIDRsvd
-               | otherwise = OpIDPriv n
+instance Binary OperatorIDMsg where
+  get = OperatorIDMsg <$> getWord8 <*> getLazyByteString 20 <* getByteString 3
+  put (OperatorIDMsg t i) = putWord8 t <> putLazyByteString (i <> BS.replicate 3 0x00)
 
 data ClassType = ClassTypeUndeclared | EuroUnion | ClassTypeRsvd
 
