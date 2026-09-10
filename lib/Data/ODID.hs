@@ -247,3 +247,21 @@ instance Pretty SpeedAcc where
 
 -- | Operator location source type
 data OpLocSrc = Takeoff | Dynamic | Fixed
+
+-- | Location message
+data LocMsg = LocMsg
+  { locStatusFlags :: Word8
+  , locTrackDir :: Word8
+  , locSpeed :: Word8
+  , locVertSpeed :: Word8
+  , locLat :: Word32
+  , locLon :: Word32
+  , locPresAlt :: Word16
+  , locGeoAlt :: Word16
+  , locHeight :: Word16
+  , locVertHorzAcc :: Word8
+  , locBaroAltAccSpeedAcc :: Word8
+  , locTimestamp :: Word16
+  , locTimestampAcc :: Word8
+  }
+  deriving (Eq, Read, Show)
