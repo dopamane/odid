@@ -109,8 +109,8 @@ instance Binary MsgHdr where
 instance Pretty MsgHdr where
   pretty (MsgHdr t v) = pretty t <+> "v" <> pretty v
 
-data MsgBdy = BasicIDBdy BasicIDMsg | LocBdy | AuthBdy | SelfIDBdy | SystemBdy
-  | OperatorIDBdy OperatorIDMsg | PackBdy Word8 Word8 [Msg]
+data MsgBdy = BasicIDBdy BasicIDMsg | LocBdy | AuthBdy | SelfIDBdy Word8 ByteString
+  | SystemBdy | OperatorIDBdy OperatorIDMsg | PackBdy Word8 Word8 [Msg]
   deriving (Eq, Read, Show)
 
 getMsgBdy :: MsgHdr -> Get MsgBdy
@@ -118,7 +118,7 @@ getMsgBdy hdr = case msgType hdr of
   BasicIDTy -> BasicIDBdy <$> get
   Location -> return LocBdy
   Auth -> return AuthBdy
-  SelfIDTy -> return SelfIDBdy
+  SelfIDTy -> SelfIDBdy <$> getWord8 <*> getLazyByteString 23
   System -> return SystemBdy
   OperatorID -> OperatorIDBdy <$> get
   Pack -> do
