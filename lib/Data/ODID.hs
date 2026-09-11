@@ -4,11 +4,11 @@
 module Data.ODID
   ( ODID(..), readODID, writeODID
   , UAType(..)
-  , Msg(..), getMsg
-  , MsgHdr(..), MsgType(..), msgTypes
+  , Msg(..), getMsg, MsgHdr(..), MsgType(..), msgTypes, MsgBdy(..)
   , BasicIDMsg(..), UASID
   ) where
 
+import Control.Monad
 import Data.Binary
 import Data.Binary.Get
 import Data.Binary.Put
@@ -110,7 +110,7 @@ instance Pretty MsgHdr where
   pretty (MsgHdr t v) = pretty t <+> "v" <> pretty v
 
 data MsgBdy = BasicIDBdy BasicIDMsg | LocBdy | AuthBdy | SelfIDBdy | SystemBdy
-  | OperatorIDBdy OperatorIDMsg | PackBdy
+  | OperatorIDBdy OperatorIDMsg | PackBdy Word8 Word8 [Msg]
   deriving (Eq, Read, Show)
 
 getMsgBdy :: MsgHdr -> Get MsgBdy
@@ -121,7 +121,10 @@ getMsgBdy hdr = case msgType hdr of
   SelfIDTy -> return SelfIDBdy
   System -> return SystemBdy
   OperatorID -> OperatorIDBdy <$> get
-  Pack -> return PackBdy
+  Pack -> do
+    sz <- getWord8
+    nm <- getWord8
+    PackBdy sz nm <$> replicateM (fromIntegral nm) getMsg
 
 type UASID = ByteString
 
@@ -263,5 +266,19 @@ data LocMsg = LocMsg
   , locBaroAltAccSpeedAcc :: Word8
   , locTimestamp :: Word16
   , locTimestampAcc :: Word8
+  }
+  deriving (Eq, Read, Show)
+
+data SysMsg = SysMsg
+  { sysFlags :: Word8
+  , sysOpLat :: Word32
+  , sysOpLon :: Word32
+  , sysArCnt :: Word16
+  , sysArRad :: Word8
+  , sysArCeil :: Word16
+  , sysArFloor :: Word16
+  , sysUAClass :: Word8
+  , sysOpAlt :: Word16
+  , sysTimestamp :: Word32
   }
   deriving (Eq, Read, Show)
