@@ -4,7 +4,7 @@
 module Data.ODID
   ( ODID(..), readODID, writeODID
   , UAType(..)
-  , Msg(..), getMsg, MsgHdr(..), MsgType(..), msgTypes, MsgBdy(..)
+  , Msg(..), MsgHdr(..), MsgType(..), msgTypes, MsgBdy(..)
   , BasicIDMsg(..), UASID
   ) where
 
@@ -110,21 +110,8 @@ instance Pretty MsgHdr where
   pretty (MsgHdr t v) = pretty t <+> "v" <> pretty v
 
 data MsgBdy = BasicIDBdy BasicIDMsg | LocBdy | AuthBdy | SelfIDBdy Word8 ByteString
-  | SystemBdy | OperatorIDBdy OperatorIDMsg | PackBdy Word8 Word8 [Msg]
+  | SysBdy SysMsg | OpIDBdy OperatorIDMsg | PackBdy Word8 Word8 [Msg]
   deriving (Eq, Read, Show)
-
-getMsgBdy :: MsgHdr -> Get MsgBdy
-getMsgBdy hdr = case msgType hdr of
-  BasicIDTy -> BasicIDBdy <$> get
-  Location -> return LocBdy
-  Auth -> return AuthBdy
-  SelfIDTy -> SelfIDBdy <$> getWord8 <*> getLazyByteString 23
-  System -> return SystemBdy
-  OperatorID -> OperatorIDBdy <$> get
-  Pack -> do
-    sz <- getWord8
-    nm <- getWord8
-    PackBdy sz nm <$> replicateM (fromIntegral nm) getMsg
 
 type UASID = ByteString
 
@@ -148,8 +135,20 @@ instance Binary BasicIDMsg where
 data Msg = Msg{msgHdr :: MsgHdr, msgBdy :: MsgBdy}
   deriving (Eq, Read, Show)
 
-getMsg :: Get Msg
-getMsg = get >>= \hdr -> Msg hdr <$> getMsgBdy hdr
+instance Binary Msg where
+  get = get >>= \hdr -> Msg hdr <$> case msgType hdr of
+    BasicIDTy -> BasicIDBdy <$> get
+    Location -> return LocBdy
+    Auth -> return AuthBdy
+    SelfIDTy -> SelfIDBdy <$> get <*> getLazyByteString 23
+    System -> SysBdy <$> get
+    OperatorID -> OpIDBdy <$> get
+    Pack -> do
+      sz <- getWord8
+      nm <- getWord8
+      PackBdy sz nm <$> replicateM (fromIntegral nm) get
+
+  put = undefined
 
 data IDType = IDTypeNone | SerialNum | CAARegID | UTMUUID | SpecificSessionID
   deriving (Bounded, Eq, Enum, Read, Show)
@@ -282,3 +281,7 @@ data SysMsg = SysMsg
   , sysTimestamp :: Word32
   }
   deriving (Eq, Read, Show)
+
+instance Binary SysMsg where
+  get = undefined
+  put = undefined
