@@ -3,7 +3,7 @@
 -- | Open Drone ID
 module Data.ODID
   ( Msg(..), MsgHdr(..), MsgType(..), msgTypes, MsgBdy(..)
-  , BasicIDMsg(..), UASID, UAType(..)
+  , UASID, UAType(..)
   , SysMsg(..), ClassType(..), OpLocSrc(..)
   ) where
 
@@ -101,52 +101,42 @@ instance Binary MsgHdr where
 instance Pretty MsgHdr where
   pretty (MsgHdr t v) = pretty t <+> "v" <> pretty v
 
-data MsgBdy = BasicIDBdy BasicIDMsg | LocBdy | AuthBdy | SelfIDBdy Word8 ByteString
-  | SysBdy SysMsg | OpIDBdy OpIDMsg | PackBdy Word8 Word8 [Msg]
+data MsgBdy = BasicIDBdy IDType UAType UASID | LocBdy | AuthBdy | SelfIDBdy Word8 ByteString
+  | SysBdy SysMsg | OpIDBdy Word8 ByteString | PackBdy Word8 Word8 [Msg]
   deriving (Eq, Read, Show)
 
 type UASID = ByteString
-
-data BasicIDMsg = BasicIDMsg
-  {basicIDType :: IDType, basicIDUA :: UAType, basicIDUASID :: UASID}
-  deriving (Eq, Read, Show)
-
-instance Binary BasicIDMsg where
-  get = getWord8 >>= \w8 ->
-    BasicIDMsg
-      <$> getIDType (w8 `shiftR` 4) <*> getUAType (w8 .&. 0xF)
-      <*> getLazyByteString 20 <* getByteString 3
-
-  put (BasicIDMsg t ua uasid) = do
-    putWord8 $ idTy `shiftL` 4 .|. uaTy
-    putLazyByteString $ uasid <> BS.replicate 3 0x00
-    where
-      idTy = fromIntegral $ fromEnum t
-      uaTy = fromIntegral $ fromEnum ua
 
 data Msg = Msg{msgHdr :: MsgHdr, msgBdy :: MsgBdy}
   deriving (Eq, Read, Show)
 
 instance Binary Msg where
   get = get >>= \hdr -> Msg hdr <$> case msgType hdr of
-    BasicIDTy -> BasicIDBdy <$> get
+    BasicIDTy -> getWord8 >>= \w8 ->
+      BasicIDBdy
+        <$> getIDType (w8 `shiftR` 4) <*> getUAType (w8 .&. 0xF)
+        <*> getLazyByteString 20 <* getByteString 3
     Location -> return LocBdy
     Auth -> return AuthBdy
     SelfIDTy -> SelfIDBdy <$> get <*> getLazyByteString 23
     System -> SysBdy <$> get
-    OperatorID -> OpIDBdy <$> get
+    OperatorID -> OpIDBdy <$> getWord8 <*> getLazyByteString 20 <* getByteString 3
     Pack -> do
       sz <- getWord8
       nm <- getWord8
       PackBdy sz nm <$> replicateM (fromIntegral nm) get
 
   put (Msg hdr bdy) = put hdr <> case bdy of
-    BasicIDBdy b -> put b
+    BasicIDBdy t ua uasid -> do
+      let idTy = fromIntegral $ fromEnum t
+          uaTy = fromIntegral $ fromEnum ua
+      putWord8 $ idTy `shiftL` 4 .|. uaTy
+      putLazyByteString $ uasid <> BS.replicate 3 0x00
     LocBdy -> undefined
     AuthBdy -> undefined
     SelfIDBdy ty desc -> putWord8 ty <> putLazyByteString desc
     SysBdy s -> put s
-    OpIDBdy o -> put o
+    OpIDBdy t i -> putWord8 t <> putLazyByteString (i <> BS.replicate 3 0x00)
     PackBdy sz nm ms -> putWord8 sz <> putWord8 nm <> foldMap put ms
 
 data IDType = IDTypeNone | SerialNum | CAARegID | UTMUUID | SpecificSessionID
@@ -198,13 +188,6 @@ readHorizAcc n
   | n >= 0 && n < 14 = Right $ toEnum n
   | n == 14 || n == 15 = Right HorizAccRsvd
   | otherwise = Left $ "horiz acc out of bounds " ++ show n
-
-data OpIDMsg = OpIDMsg{opIDType :: Word8, opID :: ByteString}
-  deriving (Eq, Read, Show)
-
-instance Binary OpIDMsg where
-  get = OpIDMsg <$> getWord8 <*> getLazyByteString 20 <* getByteString 3
-  put (OpIDMsg t i) = putWord8 t <> putLazyByteString (i <> BS.replicate 3 0x00)
 
 data EUClassType = Undefined | Open | Specific | Certified | EUClassTypeRsvd
 
@@ -315,8 +298,8 @@ instance Binary SysMsg where
     putWord16le $ sysArCnt m
     putWord8 $ fromIntegral $ sysArRad m `div` 10
 
-seven :: Int
-seven = 7
-
 instance Pretty SysMsg where
   pretty = viaShow
+
+seven :: Int
+seven = 7
