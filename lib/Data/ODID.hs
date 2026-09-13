@@ -143,10 +143,14 @@ data MsgBdy = BasicIDBdy IDType UAType UASID | LocBdy | AuthBdy | SelfIDBdy Word
 
 instance Pretty MsgBdy where
   pretty m = case m of
-    BasicIDBdy idTy uaTy uasid -> vsep
-      ["ID Type:" <+> pretty idTy, "UA Type:" <+> pretty uaTy
-      , "UASID:" <+> pretty (BSC.unpack uasid)]
-    x -> viaShow x
+    BasicIDBdy idTy uaTy uasid -> vsep ["ID Type:" <+> pretty idTy
+      , "UA Type:" <+> pretty uaTy, "UASID:" <+> pretty (BSC.unpack uasid)]
+    LocBdy -> undefined
+    AuthBdy -> undefined
+    SelfIDBdy ty desc -> vsep [pretty ty, pretty $ BSC.unpack desc]
+    SysBdy s -> pretty s
+    OpIDBdy t i -> vsep [pretty t, pretty $ BSC.unpack i]
+    PackBdy sz nm ms -> vsep ["Size=" <> pretty sz, "Cnt=" <> pretty nm, indent 2 $ vsep $ pretty <$> ms]
 
 type UASID = ByteString
 
