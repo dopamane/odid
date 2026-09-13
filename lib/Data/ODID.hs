@@ -2,10 +2,9 @@
 
 -- | Open Drone ID
 module Data.ODID
-  ( ODID(..), readODID, writeODID
-  , UAType(..)
-  , Msg(..), MsgHdr(..), MsgType(..), msgTypes, MsgBdy(..)
-  , BasicIDMsg(..), UASID
+  ( Msg(..), MsgHdr(..), MsgType(..), msgTypes, MsgBdy(..)
+  , BasicIDMsg(..), UASID, UAType(..)
+  , SysMsg(..), ClassType(..), OpLocSrc(..)
   ) where
 
 import Control.Monad
@@ -18,14 +17,6 @@ import qualified Data.ByteString.Lazy as BS
 import Data.Word
 import Numeric
 import Prettyprinter
-
-data ODID = ODID
-
-readODID :: ByteString -> Either String ODID
-readODID = undefined
-
-writeODID :: ODID -> ByteString
-writeODID = undefined
 
 -- | Unmanned aircraft
 data UAType
@@ -110,7 +101,7 @@ instance Pretty MsgHdr where
   pretty (MsgHdr t v) = pretty t <+> "v" <> pretty v
 
 data MsgBdy = BasicIDBdy BasicIDMsg | LocBdy | AuthBdy | SelfIDBdy Word8 ByteString
-  | SysBdy SysMsg | OpIDBdy OperatorIDMsg | PackBdy Word8 Word8 [Msg]
+  | SysBdy SysMsg | OpIDBdy OpIDMsg | PackBdy Word8 Word8 [Msg]
   deriving (Eq, Read, Show)
 
 type UASID = ByteString
@@ -200,14 +191,12 @@ readHorizAcc n
   | n == 14 || n == 15 = Right HorizAccRsvd
   | otherwise = Left $ "horiz acc out of bounds " ++ show n
 
-data OperatorIDMsg = OperatorIDMsg{opIDType :: Word8, opID :: ByteString}
+data OpIDMsg = OpIDMsg{opIDType :: Word8, opID :: ByteString}
   deriving (Eq, Read, Show)
 
-instance Binary OperatorIDMsg where
-  get = OperatorIDMsg <$> getWord8 <*> getLazyByteString 20 <* getByteString 3
-  put (OperatorIDMsg t i) = putWord8 t <> putLazyByteString (i <> BS.replicate 3 0x00)
-
-data ClassType = ClassTypeUndeclared | EuroUnion | ClassTypeRsvd
+instance Binary OpIDMsg where
+  get = OpIDMsg <$> getWord8 <*> getLazyByteString 20 <* getByteString 3
+  put (OpIDMsg t i) = putWord8 t <> putLazyByteString (i <> BS.replicate 3 0x00)
 
 data EUClassType = Undefined | Open | Specific | Certified | EUClassTypeRsvd
 
@@ -247,9 +236,6 @@ instance Pretty SpeedAcc where
     LT03MS -> "<0.3 m/s"
     SpeedAccRsvd -> "Reserved"
 
--- | Operator location source type
-data OpLocSrc = Takeoff | Dynamic | Fixed
-
 -- | Location message
 data LocMsg = LocMsg
   { locStatusFlags :: Word8
@@ -268,8 +254,16 @@ data LocMsg = LocMsg
   }
   deriving (Eq, Read, Show)
 
+data ClassType = ClassTypeUndeclared | EuroUnion | ClassTypeRsvd
+  deriving (Eq, Read, Show)
+
+-- | Operator location source type
+data OpLocSrc = Takeoff | Dynamic | Fixed
+  deriving (Eq, Read, Show)
+
 data SysMsg = SysMsg
-  { sysFlags :: Word8
+  { sysClassType :: ClassType
+  , sysOpSrcType :: OpLocSrc
   , sysOpLat :: Word32
   , sysOpLon :: Word32
   , sysArCnt :: Word16
@@ -283,5 +277,10 @@ data SysMsg = SysMsg
   deriving (Eq, Read, Show)
 
 instance Binary SysMsg where
-  get = undefined
+  get = do
+   flags <- getWord8
+   opLat <- getWord32le
+   opLon <- getWord32le
+   arCnt <- getWord16le
+   return undefined
   put = undefined
