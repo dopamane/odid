@@ -147,7 +147,7 @@ instance Binary Msg where
     SelfIDBdy ty desc -> putWord8 ty <> putLazyByteString desc
     SysBdy s -> undefined
     OpIDBdy o -> undefined
-    PackBdy sz nm ms -> undefined
+    PackBdy sz nm ms -> putWord8 sz <> putWord8 nm <> foldMap put ms
 
 data IDType = IDTypeNone | SerialNum | CAARegID | UTMUUID | SpecificSessionID
   deriving (Bounded, Eq, Enum, Read, Show)
