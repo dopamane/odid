@@ -239,33 +239,25 @@ instance Pretty SpeedAcc where
 
 -- | Location message
 data LocMsg = LocMsg
-  { locStatusFlags :: Word8
-  , locTrackDir :: Word8
-  , locSpeed :: Word8
-  , locVertSpeed :: Word8
-  , locLat :: Word32
-  , locLon :: Word32
-  , locPresAlt :: Word16
-  , locGeoAlt :: Word16
-  , locHeight :: Word16
-  , locVertHorzAcc :: Word8
-  , locBaroAltAccSpeedAcc :: Word8
-  , locTimestamp :: Word16
-  , locTimestampAcc :: Word8
+  { locStatusFlags :: Word8, locTrackDir :: Word8, locSpeed :: Word8
+  , locVertSpeed :: Word8, locLat :: Word32, locLon :: Word32
+  , locPresAlt :: Word16, locGeoAlt :: Word16, locHeight :: Word16
+  , locVertHorzAcc :: Word8, locBaroAltAccSpeedAcc :: Word8
+  , locTimestamp :: Word16, locTimestampAcc :: Word8
   }
   deriving (Eq, Read, Show)
 
-data ClassType = ClassTypeUndeclared | EuroUnion | ClassTypeRsvd
+data ClassType = ClassTypeUndeclared | EuroUnion | ClassTypeRsvd Word8
   deriving (Eq, Read, Show)
 
 instance Pretty ClassType where
   pretty ClassTypeUndeclared = "Undeclared"
   pretty EuroUnion = "European Union"
-  pretty ClassTypeRsvd = "Reserved"
+  pretty (ClassTypeRsvd n) = "Reserved" <+> pretty n
 
 -- | Operator location source type
 data OpLocSrc = Takeoff | Dynamic | Fixed
-  deriving (Eq, Read, Show)
+  deriving (Enum, Eq, Read, Show)
 
 instance Pretty OpLocSrc where
   pretty = viaShow
@@ -280,10 +272,10 @@ data SysMsg = SysMsg
 instance Binary SysMsg where
   get = do
    flags <- getWord8
-   let classType = case 0x3 .&. flags `shiftR` 2 of
+   let classType = case 0x7 .&. flags `shiftR` 2 of
          0 -> ClassTypeUndeclared
          1 -> EuroUnion
-         _ -> ClassTypeRsvd -- TODO capture
+         n -> ClassTypeRsvd n
        srcType = case 0x3 .&. flags of
          0 -> Takeoff
          1 -> Dynamic
@@ -303,4 +295,10 @@ instance Binary SysMsg where
      , sysUAClass=uaClass, sysOpAlt=opAlt, sysTimestamp=tstmp
      }
 
-  put = undefined
+  put SysMsg{sysOpSrcType=opSrc} = do
+    let classTy = undefined
+        flags = classTy `shiftL` 2 .|. fromIntegral (fromEnum opSrc)
+    putWord8 flags
+
+instance Pretty SysMsg where
+  pretty = viaShow
