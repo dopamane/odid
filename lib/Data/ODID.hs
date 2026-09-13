@@ -140,7 +140,14 @@ instance Binary Msg where
       nm <- getWord8
       PackBdy sz nm <$> replicateM (fromIntegral nm) get
 
-  put = undefined
+  put (Msg hdr bdy) = put hdr <> case bdy of
+    BasicIDBdy b -> put b
+    LocBdy -> undefined
+    AuthBdy -> undefined
+    SelfIDBdy ty desc -> putWord8 ty <> putLazyByteString desc
+    SysBdy s -> undefined
+    OpIDBdy o -> undefined
+    PackBdy sz nm ms -> undefined
 
 data IDType = IDTypeNone | SerialNum | CAARegID | UTMUUID | SpecificSessionID
   deriving (Bounded, Eq, Enum, Read, Show)
