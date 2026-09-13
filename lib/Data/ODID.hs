@@ -285,7 +285,7 @@ instance Pretty OpLocSrc where
 data SysMsg = SysMsg
   { sysClassType :: ClassType, sysOpSrcType :: OpLocSrc, sysOpLat :: Double
   , sysOpLon :: Double, sysArCnt :: Word16, sysArRad :: Integer, sysArCeil :: Double
-  , sysArFloor :: Word16, sysUAClass :: Word8, sysOpAlt :: Word16, sysTimestamp :: Word32
+  , sysArFloor :: Double, sysUAClass :: Word8, sysOpAlt :: Word16, sysTimestamp :: Word32
   }
   deriving (Eq, Read, Show)
 
@@ -306,7 +306,7 @@ instance Binary SysMsg where
      <*> getWord16le
      <*> fmap ((* 10) . fromIntegral) getWord8
      <*> fmap (subtract 1000 . (0.5 *) . fromIntegral) getWord16le
-     <*> getWord16le
+     <*> fmap decodeAlt getWord16le
      <*> getWord8
      <*> getWord16le
      <*> getWord32le
@@ -318,12 +318,19 @@ instance Binary SysMsg where
     putInt32le $ truncate $ sysOpLon m * 10 ^ seven
     putWord16le $ sysArCnt m
     putWord8 $ fromIntegral $ sysArRad m `div` 10
-    putWord16le $ truncate $ (sysArCeil m + 1000) * 2
+    putWord16le $ encodeAlt $ sysArCeil m
+    putWord16le $ encodeAlt $ sysArFloor m
     where
       classTy = case sysClassType m of
         ClassTypeUndeclared -> 0
         EuroUnion -> 1
         ClassTypeRsvd r -> r
+
+encodeAlt :: Double -> Word16
+encodeAlt x = truncate $ (x + 1000) * 2
+
+decodeAlt :: Word16 -> Double
+decodeAlt x = fromIntegral x * 0.5 - 1000
 
 instance Pretty SysMsg where
   pretty = viaShow
