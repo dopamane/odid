@@ -5,6 +5,7 @@ module Data.ODID
   ( Msg(..), MsgHdr(..), MsgType(..), msgTypes, MsgBdy(..)
   , UASID, UAType(..)
   , SysMsg(..), ClassType(..), OpLocSrc(..)
+  , AuthMsg(..), LocMsg(..)
   ) where
 
 import Control.Monad
@@ -29,8 +30,8 @@ instance Binary Msg where
       BasicIDBdy
         <$> getIDType (w8 `shiftR` 4) <*> getUAType (w8 .&. 0xF)
         <*> getLazyByteString 20 <* getByteString 3
-    Location -> return LocBdy
-    Auth -> return AuthBdy
+    Location -> LocBdy <$> get
+    Auth -> AuthBdy <$> get
     SelfIDTy -> SelfIDBdy <$> get <*> getLazyByteString 23
     System -> SysBdy <$> get
     OperatorID -> OpIDBdy <$> getWord8 <*> getLazyByteString 20 <* getByteString 3
@@ -41,12 +42,10 @@ instance Binary Msg where
 
   put (Msg hdr bdy) = put hdr <> case bdy of
     BasicIDBdy t ua uasid -> do
-      let idTy = fromIntegral $ fromEnum t
-          uaTy = fromIntegral $ fromEnum ua
-      putWord8 $ idTy `shiftL` 4 .|. uaTy
+      putWord8 $ fromIntegral $ fromEnum t `shiftL` 4 .|. fromEnum ua
       putLazyByteString $ uasid <> BS.replicate 3 0x00
-    LocBdy -> undefined
-    AuthBdy -> undefined
+    LocBdy l -> put l
+    AuthBdy a -> put a
     SelfIDBdy ty desc -> putWord8 ty <> putLazyByteString desc
     SysBdy s -> put s
     OpIDBdy t i -> putWord8 t <> putLazyByteString (i <> BS.replicate 3 0x00)
@@ -103,9 +102,12 @@ msgTypes :: [MsgType]
 msgTypes = [BasicIDTy, Location, Auth, SelfIDTy, System, OperatorID, Pack]
 
 instance Pretty MsgType where
-  pretty BasicIDTy = "BasicID"
-  pretty SelfIDTy = "SelfID"
-  pretty t = viaShow t
+  pretty t = case t of
+    BasicIDTy -> "Basic ID"
+    Location -> "Location"
+    SelfIDTy -> "Self ID"
+    OperatorID -> "Operator ID"
+    _ -> viaShow t
 
 data MsgHdr = MsgHdr{msgVer :: Word8, msgType :: MsgType}
   deriving (Eq, Read, Show)
@@ -137,20 +139,22 @@ instance Binary MsgHdr where
 instance Pretty MsgHdr where
   pretty (MsgHdr v t) = "v" <> pretty v <+> pretty t
 
-data MsgBdy = BasicIDBdy IDType UAType UASID | LocBdy | AuthBdy | SelfIDBdy Word8 ByteString
-  | SysBdy SysMsg | OpIDBdy Word8 ByteString | PackBdy Word8 Word8 [Msg]
+data MsgBdy = BasicIDBdy IDType UAType UASID | LocBdy LocMsg | AuthBdy AuthMsg
+  | SelfIDBdy Word8 ByteString | SysBdy SysMsg | OpIDBdy Word8 ByteString
+  | PackBdy Word8 Word8 [Msg]
   deriving (Eq, Read, Show)
 
 instance Pretty MsgBdy where
   pretty m = case m of
     BasicIDBdy idTy uaTy uasid -> vsep ["ID Type:" <+> pretty idTy
       , "UA Type:" <+> pretty uaTy, "UASID:" <+> pretty (BSC.unpack uasid)]
-    LocBdy -> undefined
-    AuthBdy -> undefined
+    LocBdy l -> pretty l
+    AuthBdy a -> pretty a
     SelfIDBdy ty desc -> vsep [pretty ty, pretty $ BSC.unpack desc]
     SysBdy s -> pretty s
     OpIDBdy t i -> vsep [pretty t, pretty $ BSC.unpack i]
-    PackBdy sz nm ms -> vsep ["Size=" <> pretty sz, "Cnt=" <> pretty nm, indent 2 $ vsep $ pretty <$> ms]
+    PackBdy sz nm ms -> vsep ["Size=" <> pretty sz <+> "Cnt=" <> pretty nm
+      , indent 2 $ vsep $ pretty <$> ms]
 
 type UASID = ByteString
 
@@ -264,6 +268,9 @@ instance Binary LocMsg where
   get = undefined
   put = undefined
 
+instance Pretty LocMsg where
+  pretty = viaShow
+
 data ClassType = ClassTypeUndeclared | EuroUnion | ClassTypeRsvd Word8
   deriving (Eq, Read, Show)
 
@@ -314,8 +321,7 @@ instance Binary SysMsg where
                     ClassTypeUndeclared -> 0
                     EuroUnion -> 1
                     ClassTypeRsvd r -> r
-        flags = classTy `shiftL` 2 .|. fromIntegral (fromEnum opSrc)
-    putWord8 flags
+    putWord8 $ classTy `shiftL` 2 .|. fromIntegral (fromEnum opSrc)
     putInt32le $ floor $ sysOpLat m * 10 ^ seven
     putInt32le $ floor $ sysOpLon m * 10 ^ seven
     putWord16le $ sysArCnt m
@@ -326,3 +332,13 @@ instance Pretty SysMsg where
 
 seven :: Int
 seven = 7
+
+data AuthMsg = AuthMsg
+  deriving (Eq, Read, Show)
+
+instance Binary AuthMsg where
+  get = undefined
+  put = undefined
+
+instance Pretty AuthMsg where
+  pretty = viaShow
