@@ -252,16 +252,43 @@ instance Pretty SpeedAcc where
 
 -- | Location message
 data LocMsg = LocMsg
-  { locStatusFlags :: Word8, locTrackDir :: Word8, locSpeed :: Word8
-  , locVertSpeed :: Word8, locLat :: Word32, locLon :: Word32
-  , locPresAlt :: Word16, locGeoAlt :: Word16, locHeight :: Word16
+  { locOpStatus :: OpStatus, locFlagsRsvd :: Bool, locFlagsHeightType :: Bool
+  , locFlagsDir :: Bool, locFlagsMult :: Bool, locTrackDir :: Word8, locSpeed :: Word8
+  , locVertSpeed :: Word8, locLat :: Double, locLon :: Double
+  , locPresAlt :: Double, locGeoAlt :: Double, locHeight :: Double
   , locVertHorzAcc :: Word8, locBaroAltAccSpeedAcc :: Word8
   , locTimestamp :: Word16, locTimestampAcc :: Word8
   }
   deriving (Eq, Read, Show)
 
 instance Binary LocMsg where
-  get = undefined
+  get = do
+    w8 <- getWord8
+    let opStatus = case w8 `shiftR` 4 of
+          0 -> Undeclared
+          1 -> Ground
+          2 -> Airborne
+          3 -> Emergency
+          4 -> RemoteIDSystemFailure
+          n -> OpStatusRsvd n
+        flgsRsvd = undefined
+        ht = undefined
+        dir = undefined
+        mul = undefined
+    LocMsg opStatus flgsRsvd ht dir mul
+      <$> getWord8
+      <*> getWord8
+      <*> getWord8
+      <*> fmap undefined getInt32le
+      <*> fmap undefined getInt32le
+      <*> fmap decodeAlt getWord16le
+      <*> fmap decodeAlt getWord16le
+      <*> fmap decodeAlt getWord16le
+      <*> getWord8
+      <*> getWord8
+      <*> getWord16le
+      <*> getWord8
+      <*  getWord8
   put = undefined
 
 instance Pretty LocMsg where
