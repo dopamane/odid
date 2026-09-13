@@ -264,7 +264,7 @@ instance Pretty OpLocSrc where
 
 data SysMsg = SysMsg
   { sysClassType :: ClassType, sysOpSrcType :: OpLocSrc, sysOpLat :: Double
-  , sysOpLon :: Double, sysArCnt :: Word16, sysArRad :: Word8, sysArCeil :: Word16
+  , sysOpLon :: Double, sysArCnt :: Word16, sysArRad :: Integer, sysArCeil :: Word16
   , sysArFloor :: Word16, sysUAClass :: Word8, sysOpAlt :: Word16, sysTimestamp :: Word32
   }
   deriving (Eq, Read, Show)
@@ -280,10 +280,10 @@ instance Binary SysMsg where
          0 -> Takeoff
          1 -> Dynamic
          _ -> Fixed
-   opLat <- (/ 10^(7 :: Int)) . fromIntegral <$> getInt32le
-   opLon <- (/ 10^(7 :: Int)) . fromIntegral <$> getInt32le
+   opLat <- (/ 10 ^ seven) . fromIntegral <$> getInt32le
+   opLon <- (/ 10 ^ seven) . fromIntegral <$> getInt32le
    arCnt <- getWord16le
-   arRad <- getWord8
+   arRad <- (* 10) . fromIntegral <$> getWord8
    arCeil <- getWord16le
    arFlor <- getWord16le
    uaClass <- getWord8
@@ -295,10 +295,20 @@ instance Binary SysMsg where
      , sysUAClass=uaClass, sysOpAlt=opAlt, sysTimestamp=tstmp
      }
 
-  put SysMsg{sysOpSrcType=opSrc} = do
-    let classTy = undefined
+  put m@SysMsg{sysClassType=ct,sysOpSrcType=opSrc} = do
+    let classTy = case ct of
+                    ClassTypeUndeclared -> 0
+                    EuroUnion -> 1
+                    ClassTypeRsvd r -> r
         flags = classTy `shiftL` 2 .|. fromIntegral (fromEnum opSrc)
     putWord8 flags
+    putInt32le $ floor $ sysOpLat m * 10 ^ seven
+    putInt32le $ floor $ sysOpLon m * 10 ^ seven
+    putWord16le $ sysArCnt m
+    putWord8 $ fromIntegral $ sysArRad m `div` 10
+
+seven :: Int
+seven = 7
 
 instance Pretty SysMsg where
   pretty = viaShow
