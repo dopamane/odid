@@ -145,8 +145,8 @@ instance Binary Msg where
     LocBdy -> undefined
     AuthBdy -> undefined
     SelfIDBdy ty desc -> putWord8 ty <> putLazyByteString desc
-    SysBdy s -> undefined
-    OpIDBdy o -> undefined
+    SysBdy s -> put s
+    OpIDBdy o -> put o
     PackBdy sz nm ms -> putWord8 sz <> putWord8 nm <> foldMap put ms
 
 data IDType = IDTypeNone | SerialNum | CAARegID | UTMUUID | SpecificSessionID
@@ -254,6 +254,10 @@ data LocMsg = LocMsg
   }
   deriving (Eq, Read, Show)
 
+instance Binary LocMsg where
+  get = undefined
+  put = undefined
+
 data ClassType = ClassTypeUndeclared | EuroUnion | ClassTypeRsvd Word8
   deriving (Eq, Read, Show)
 
@@ -287,20 +291,17 @@ instance Binary SysMsg where
          0 -> Takeoff
          1 -> Dynamic
          _ -> Fixed
-   opLat <- (/ 10 ^ seven) . fromIntegral <$> getInt32le
-   opLon <- (/ 10 ^ seven) . fromIntegral <$> getInt32le
-   arCnt <- getWord16le
-   arRad <- (* 10) . fromIntegral <$> getWord8
-   arCeil <- getWord16le
-   arFlor <- getWord16le
-   uaClass <- getWord8
-   opAlt <- getWord16le
-   tstmp <- getWord32le <* getWord8
-   return SysMsg
-     { sysClassType=classType, sysOpSrcType=srcType, sysOpLat=opLat, sysOpLon=opLon
-     , sysArCnt=arCnt, sysArRad=arRad, sysArCeil=arCeil, sysArFloor=arFlor
-     , sysUAClass=uaClass, sysOpAlt=opAlt, sysTimestamp=tstmp
-     }
+   SysMsg classType srcType
+     <$> fmap ((/ 10 ^ seven) . fromIntegral) getInt32le
+     <*> fmap ((/ 10 ^ seven) . fromIntegral) getInt32le
+     <*> getWord16le
+     <*> fmap ((* 10) . fromIntegral) getWord8
+     <*> getWord16le
+     <*> getWord16le
+     <*> getWord8
+     <*> getWord16le
+     <*> getWord32le
+     <*  getWord8
 
   put m@SysMsg{sysClassType=ct,sysOpSrcType=opSrc} = do
     let classTy = case ct of
