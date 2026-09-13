@@ -27,17 +27,14 @@ data Msg = Msg{msgHdr :: MsgHdr, msgBdy :: MsgBdy}
 instance Binary Msg where
   get = get >>= \hdr -> Msg hdr <$> case msgType hdr of
     BasicIDTy -> getWord8 >>= \w8 ->
-      BasicIDBdy
-        <$> getIDType (w8 `shiftR` 4) <*> getUAType (w8 .&. 0xF)
-        <*> getLazyByteString 20 <* getByteString 3
+      BasicIDBdy <$> getIDType (w8 `shiftR` 4) <*> getUAType (w8 .&. 0xF)
+                 <*> getLazyByteString 20 <* getByteString 3
     Location -> LocBdy <$> get
     Auth -> AuthBdy <$> get
     SelfIDTy -> SelfIDBdy <$> get <*> getLazyByteString 23
     System -> SysBdy <$> get
     OperatorID -> OpIDBdy <$> getWord8 <*> getLazyByteString 20 <* getByteString 3
-    Pack -> do
-      sz <- getWord8
-      nm <- getWord8
+    Pack -> getWord8 >>= \sz -> getWord8 >>= \nm ->
       PackBdy sz nm <$> replicateM (fromIntegral nm) get
 
   put (Msg hdr bdy) = put hdr <> case bdy of
@@ -104,7 +101,6 @@ msgTypes = [BasicIDTy, Location, Auth, SelfIDTy, System, OperatorID, Pack]
 instance Pretty MsgType where
   pretty t = case t of
     BasicIDTy -> "Basic ID"
-    Location -> "Location"
     SelfIDTy -> "Self ID"
     OperatorID -> "Operator ID"
     _ -> viaShow t
@@ -288,7 +284,7 @@ instance Pretty OpLocSrc where
 
 data SysMsg = SysMsg
   { sysClassType :: ClassType, sysOpSrcType :: OpLocSrc, sysOpLat :: Double
-  , sysOpLon :: Double, sysArCnt :: Word16, sysArRad :: Integer, sysArCeil :: Word16
+  , sysOpLon :: Double, sysArCnt :: Word16, sysArRad :: Integer, sysArCeil :: Double
   , sysArFloor :: Word16, sysUAClass :: Word8, sysOpAlt :: Word16, sysTimestamp :: Word32
   }
   deriving (Eq, Read, Show)
@@ -309,23 +305,25 @@ instance Binary SysMsg where
      <*> fmap ((/ 10 ^ seven) . fromIntegral) getInt32le
      <*> getWord16le
      <*> fmap ((* 10) . fromIntegral) getWord8
-     <*> getWord16le
+     <*> fmap (subtract 1000 . (0.5 *) . fromIntegral) getWord16le
      <*> getWord16le
      <*> getWord8
      <*> getWord16le
      <*> getWord32le
      <*  getWord8
 
-  put m@SysMsg{sysClassType=ct,sysOpSrcType=opSrc} = do
-    let classTy = case ct of
-                    ClassTypeUndeclared -> 0
-                    EuroUnion -> 1
-                    ClassTypeRsvd r -> r
-    putWord8 $ classTy `shiftL` 2 .|. fromIntegral (fromEnum opSrc)
-    putInt32le $ floor $ sysOpLat m * 10 ^ seven
-    putInt32le $ floor $ sysOpLon m * 10 ^ seven
+  put m = do
+    putWord8 $ classTy `shiftL` 2 .|. fromIntegral (fromEnum $ sysOpSrcType m)
+    putInt32le $ truncate $ sysOpLat m * 10 ^ seven
+    putInt32le $ truncate $ sysOpLon m * 10 ^ seven
     putWord16le $ sysArCnt m
     putWord8 $ fromIntegral $ sysArRad m `div` 10
+    putWord16le $ truncate $ (sysArCeil m + 1000) * 2
+    where
+      classTy = case sysClassType m of
+        ClassTypeUndeclared -> 0
+        EuroUnion -> 1
+        ClassTypeRsvd r -> r
 
 instance Pretty SysMsg where
   pretty = viaShow
