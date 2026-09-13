@@ -19,6 +19,41 @@ import Data.Word
 import Numeric
 import Prettyprinter
 
+data Msg = Msg{msgHdr :: MsgHdr, msgBdy :: MsgBdy}
+  deriving (Eq, Read, Show)
+
+instance Binary Msg where
+  get = get >>= \hdr -> Msg hdr <$> case msgType hdr of
+    BasicIDTy -> getWord8 >>= \w8 ->
+      BasicIDBdy
+        <$> getIDType (w8 `shiftR` 4) <*> getUAType (w8 .&. 0xF)
+        <*> getLazyByteString 20 <* getByteString 3
+    Location -> return LocBdy
+    Auth -> return AuthBdy
+    SelfIDTy -> SelfIDBdy <$> get <*> getLazyByteString 23
+    System -> SysBdy <$> get
+    OperatorID -> OpIDBdy <$> getWord8 <*> getLazyByteString 20 <* getByteString 3
+    Pack -> do
+      sz <- getWord8
+      nm <- getWord8
+      PackBdy sz nm <$> replicateM (fromIntegral nm) get
+
+  put (Msg hdr bdy) = put hdr <> case bdy of
+    BasicIDBdy t ua uasid -> do
+      let idTy = fromIntegral $ fromEnum t
+          uaTy = fromIntegral $ fromEnum ua
+      putWord8 $ idTy `shiftL` 4 .|. uaTy
+      putLazyByteString $ uasid <> BS.replicate 3 0x00
+    LocBdy -> undefined
+    AuthBdy -> undefined
+    SelfIDBdy ty desc -> putWord8 ty <> putLazyByteString desc
+    SysBdy s -> put s
+    OpIDBdy t i -> putWord8 t <> putLazyByteString (i <> BS.replicate 3 0x00)
+    PackBdy sz nm ms -> putWord8 sz <> putWord8 nm <> foldMap put ms
+
+instance Pretty Msg where
+  pretty (Msg hdr bdy) = vsep [pretty hdr, pretty bdy]
+
 -- | Unmanned aircraft
 data UAType
   = None | Aeroplane | Heli | Gyro | Hybrid | Ornith | Glider | Kite | FreeBalloon
@@ -51,13 +86,13 @@ getUAType t | t < 16 = return $ toEnum $ fromIntegral t
 
 -- | Operational status
 data OpStatus = Undeclared | Ground | Airborne | Emergency
-  | RemoteIDSystemFailure | OpStatusRsvd
+  | RemoteIDSystemFailure | OpStatusRsvd Word8
   deriving (Eq, Read, Show)
 
 instance Pretty OpStatus where
   pretty s = case s of
     RemoteIDSystemFailure -> "Remote ID System Failure"
-    OpStatusRsvd -> "Reserved"
+    OpStatusRsvd r -> "Reserved" <+> pretty r
     _ -> viaShow s
 
 data MsgType = BasicIDTy | Location | Auth | SelfIDTy | System | OperatorID | Pack
@@ -99,45 +134,16 @@ instance Binary MsgHdr where
         Pack       -> 0xF
 
 instance Pretty MsgHdr where
-  pretty (MsgHdr t v) = pretty t <+> "v" <> pretty v
+  pretty (MsgHdr v t) = "v" <> pretty v <+> pretty t
 
 data MsgBdy = BasicIDBdy IDType UAType UASID | LocBdy | AuthBdy | SelfIDBdy Word8 ByteString
   | SysBdy SysMsg | OpIDBdy Word8 ByteString | PackBdy Word8 Word8 [Msg]
   deriving (Eq, Read, Show)
 
+instance Pretty MsgBdy where
+  pretty = viaShow
+
 type UASID = ByteString
-
-data Msg = Msg{msgHdr :: MsgHdr, msgBdy :: MsgBdy}
-  deriving (Eq, Read, Show)
-
-instance Binary Msg where
-  get = get >>= \hdr -> Msg hdr <$> case msgType hdr of
-    BasicIDTy -> getWord8 >>= \w8 ->
-      BasicIDBdy
-        <$> getIDType (w8 `shiftR` 4) <*> getUAType (w8 .&. 0xF)
-        <*> getLazyByteString 20 <* getByteString 3
-    Location -> return LocBdy
-    Auth -> return AuthBdy
-    SelfIDTy -> SelfIDBdy <$> get <*> getLazyByteString 23
-    System -> SysBdy <$> get
-    OperatorID -> OpIDBdy <$> getWord8 <*> getLazyByteString 20 <* getByteString 3
-    Pack -> do
-      sz <- getWord8
-      nm <- getWord8
-      PackBdy sz nm <$> replicateM (fromIntegral nm) get
-
-  put (Msg hdr bdy) = put hdr <> case bdy of
-    BasicIDBdy t ua uasid -> do
-      let idTy = fromIntegral $ fromEnum t
-          uaTy = fromIntegral $ fromEnum ua
-      putWord8 $ idTy `shiftL` 4 .|. uaTy
-      putLazyByteString $ uasid <> BS.replicate 3 0x00
-    LocBdy -> undefined
-    AuthBdy -> undefined
-    SelfIDBdy ty desc -> putWord8 ty <> putLazyByteString desc
-    SysBdy s -> put s
-    OpIDBdy t i -> putWord8 t <> putLazyByteString (i <> BS.replicate 3 0x00)
-    PackBdy sz nm ms -> putWord8 sz <> putWord8 nm <> foldMap put ms
 
 data IDType = IDTypeNone | SerialNum | CAARegID | UTMUUID | SpecificSessionID
   deriving (Bounded, Eq, Enum, Read, Show)

@@ -5,12 +5,13 @@ import Data.Binary.Get
 import qualified Data.ByteString.Lazy as BS
 import Data.ODID
 import Options.Applicative
+import Prettyprinter
 
 main :: IO ()
 main = do
   cli <- customExecParser prefs' pinfo
   case cli of
-    ReadODID fM -> print . runGet (get :: Get Msg) =<< maybe BS.getContents BS.readFile fM
+    ReadODID fM -> print . pretty . runGet (get :: Get Msg) =<< maybe BS.getContents BS.readFile fM
     WriteODID -> putStrLn "Writing"
 
 prefs' :: ParserPrefs

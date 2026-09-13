@@ -35,7 +35,8 @@ executable odid
     binary,
     bytestring,
     odid,
-    optparse-applicative
+    optparse-applicative,
+    prettyprinter
 
 test-suite test
   default-language: Haskell2010
