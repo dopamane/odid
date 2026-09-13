@@ -14,6 +14,7 @@ import Data.Binary.Put
 import Data.Bits
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString.Lazy.Char8 as BSC
 import Data.Int
 import Data.Word
 import Numeric
@@ -141,12 +142,24 @@ data MsgBdy = BasicIDBdy IDType UAType UASID | LocBdy | AuthBdy | SelfIDBdy Word
   deriving (Eq, Read, Show)
 
 instance Pretty MsgBdy where
-  pretty = viaShow
+  pretty m = case m of
+    BasicIDBdy idTy uaTy uasid -> vsep
+      ["ID Type:" <+> pretty idTy, "UA Type:" <+> pretty uaTy
+      , "UASID:" <+> pretty (BSC.unpack uasid)]
+    x -> viaShow x
 
 type UASID = ByteString
 
 data IDType = IDTypeNone | SerialNum | CAARegID | UTMUUID | SpecificSessionID
   deriving (Bounded, Eq, Enum, Read, Show)
+
+instance Pretty IDType where
+  pretty t = case t of
+    IDTypeNone -> "None"
+    SerialNum -> "Serial Number (ANSI/CTA-2063-A)"
+    CAARegID -> "CAA Assigned Registration ID"
+    UTMUUID -> "UTM Assigned UUID"
+    SpecificSessionID -> "Specific Session ID"
 
 getIDType :: Word8 -> Get IDType
 getIDType n | n < 5 = return $ toEnum $ fromIntegral n
