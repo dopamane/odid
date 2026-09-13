@@ -257,9 +257,17 @@ data LocMsg = LocMsg
 data ClassType = ClassTypeUndeclared | EuroUnion | ClassTypeRsvd
   deriving (Eq, Read, Show)
 
+instance Pretty ClassType where
+  pretty ClassTypeUndeclared = "Undeclared"
+  pretty EuroUnion = "European Union"
+  pretty ClassTypeRsvd = "Reserved"
+
 -- | Operator location source type
 data OpLocSrc = Takeoff | Dynamic | Fixed
   deriving (Eq, Read, Show)
+
+instance Pretty OpLocSrc where
+  pretty = viaShow
 
 data SysMsg = SysMsg
   { sysClassType :: ClassType
@@ -282,5 +290,12 @@ instance Binary SysMsg where
    opLat <- getWord32le
    opLon <- getWord32le
    arCnt <- getWord16le
+   arRad <- getWord8
+   arCeil <- getWord16le
+   arFlor <- getWord16le
+   uaClass <- undefined
+   opAlt <- getWord16le
+   tstmp <- getWord32le
+   _ <- getWord8
    return undefined
   put = undefined
