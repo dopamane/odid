@@ -14,6 +14,7 @@ import Data.Binary.Put
 import Data.Bits
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
+import Data.Int
 import Data.Word
 import Numeric
 import Prettyprinter
@@ -270,32 +271,36 @@ instance Pretty OpLocSrc where
   pretty = viaShow
 
 data SysMsg = SysMsg
-  { sysClassType :: ClassType
-  , sysOpSrcType :: OpLocSrc
-  , sysOpLat :: Word32
-  , sysOpLon :: Word32
-  , sysArCnt :: Word16
-  , sysArRad :: Word8
-  , sysArCeil :: Word16
-  , sysArFloor :: Word16
-  , sysUAClass :: Word8
-  , sysOpAlt :: Word16
-  , sysTimestamp :: Word32
+  { sysClassType :: ClassType, sysOpSrcType :: OpLocSrc, sysOpLat :: Double
+  , sysOpLon :: Double, sysArCnt :: Word16, sysArRad :: Word8, sysArCeil :: Word16
+  , sysArFloor :: Word16, sysUAClass :: Word8, sysOpAlt :: Word16, sysTimestamp :: Word32
   }
   deriving (Eq, Read, Show)
 
 instance Binary SysMsg where
   get = do
    flags <- getWord8
-   opLat <- getWord32le
-   opLon <- getWord32le
+   let classType = case 0x3 .&. flags `shiftR` 2 of
+         0 -> ClassTypeUndeclared
+         1 -> EuroUnion
+         _ -> ClassTypeRsvd -- TODO capture
+       srcType = case 0x3 .&. flags of
+         0 -> Takeoff
+         1 -> Dynamic
+         _ -> Fixed
+   opLat <- (/ 10^(7 :: Int)) . fromIntegral <$> getInt32le
+   opLon <- (/ 10^(7 :: Int)) . fromIntegral <$> getInt32le
    arCnt <- getWord16le
    arRad <- getWord8
    arCeil <- getWord16le
    arFlor <- getWord16le
-   uaClass <- undefined
+   uaClass <- getWord8
    opAlt <- getWord16le
-   tstmp <- getWord32le
-   _ <- getWord8
-   return undefined
+   tstmp <- getWord32le <* getWord8
+   return SysMsg
+     { sysClassType=classType, sysOpSrcType=srcType, sysOpLat=opLat, sysOpLon=opLon
+     , sysArCnt=arCnt, sysArRad=arRad, sysArCeil=arCeil, sysArFloor=arFlor
+     , sysUAClass=uaClass, sysOpAlt=opAlt, sysTimestamp=tstmp
+     }
+
   put = undefined
