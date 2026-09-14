@@ -271,10 +271,10 @@ instance Binary LocMsg where
           3 -> Emergency
           4 -> RemoteIDSystemFailure
           n -> OpStatusRsvd n
-        flgsRsvd = undefined
-        ht = undefined
-        dir = undefined
-        mul = undefined
+        flgsRsvd = testBit w8 3
+        ht = testBit w8 2
+        dir = testBit w8 1
+        mul = testBit w8 0
     LocMsg opStatus flgsRsvd ht dir mul
       <$> getWord8
       <*> getWord8
