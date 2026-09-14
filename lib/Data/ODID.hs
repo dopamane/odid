@@ -225,7 +225,7 @@ data VertAcc
   | VertAccLT10M -- ^ <10 m
   | VertAccLT3M -- ^ <3 m
   | VertAccLT1M -- ^ <1 m
-  | VertAccRsvd
+  | VertAccRsvd Word8
 
 instance Pretty VertAcc where
   pretty a = case a of
@@ -236,7 +236,7 @@ instance Pretty VertAcc where
     VertAccLT10M   -> "<10 m"
     VertAccLT3M    -> "<3 m"
     VertAccLT1M    -> "<1 m"
-    VertAccRsvd    -> "Reserved"
+    VertAccRsvd n  -> "Reserved" <+> pretty n
 
 -- | Speed Accuracy. This is the same enumeration scale and values from ADS-B NACv.
 -- 95 % accuracy bound.
@@ -258,7 +258,7 @@ data HeightType = AboveTakeoff | AGL
 data LocMsg = LocMsg
   { locOpStatus :: OpStatus, locFlagsRsvd :: Bool, locFlagsHeightType :: HeightType
   , locFlagsDir :: Bool, locFlagsMult :: Bool, locTrackDir :: Integer, locSpeed :: Word8
-  , locVertSpeed :: Word8, locLat :: Double, locLon :: Double
+  , locVertSpeed :: Double, locLat :: Double, locLon :: Double
   , locPresAlt :: Double, locGeoAlt :: Double, locHeight :: Double
   , locVertHorzAcc :: Word8, locBaroAltAccSpeedAcc :: Word8
   , locTimestamp :: Word16, locTimestampAcc :: Word8, locRsvd :: Word8
@@ -280,10 +280,10 @@ instance Binary LocMsg where
         dir = testBit w8 1
         mul = testBit w8 0
     trackDir <- applyWhen dir (+ 180) . fromIntegral <$> getWord8
-    LocMsg opStatus flgsRsvd ht dir mul trackDir
-      <$> getWord8
-      <*> getWord8
-      <*> fmap undefined getInt32le
+    speed <- getWord8
+    vertSpeed <- (* 0.5) . fromIntegral <$> getInt8
+    LocMsg opStatus flgsRsvd ht dir mul trackDir speed vertSpeed
+      <$> fmap undefined getInt32le
       <*> fmap undefined getInt32le
       <*> fmap decodeAlt getWord16le
       <*> fmap decodeAlt getWord16le
@@ -305,7 +305,7 @@ instance Binary LocMsg where
     putWord8 $ opStatus `shiftL` 4 .|. undefined
     putWord8 undefined
     putWord8 undefined
-    putWord8 undefined
+    putInt8 $ truncate $ locVertSpeed l * 2
     putInt32le undefined
     putInt32le undefined
     putWord16le $ encodeAlt $ locPresAlt l
