@@ -250,9 +250,12 @@ instance Pretty SpeedAcc where
     LT03MS -> "<0.3 m/s"
     SpeedAccRsvd -> "Reserved"
 
+data HeightType = AboveTakeoff | AGL
+  deriving (Eq, Read, Show)
+
 -- | Location message
 data LocMsg = LocMsg
-  { locOpStatus :: OpStatus, locFlagsRsvd :: Bool, locFlagsHeightType :: Bool
+  { locOpStatus :: OpStatus, locFlagsRsvd :: Bool, locFlagsHeightType :: HeightType
   , locFlagsDir :: Bool, locFlagsMult :: Bool, locTrackDir :: Word8, locSpeed :: Word8
   , locVertSpeed :: Word8, locLat :: Double, locLon :: Double
   , locPresAlt :: Double, locGeoAlt :: Double, locHeight :: Double
@@ -272,7 +275,7 @@ instance Binary LocMsg where
           4 -> RemoteIDSystemFailure
           n -> OpStatusRsvd n
         flgsRsvd = testBit w8 3
-        ht = testBit w8 2
+        ht = if testBit w8 2 then AGL else AboveTakeoff
         dir = testBit w8 1
         mul = testBit w8 0
     LocMsg opStatus flgsRsvd ht dir mul
@@ -291,7 +294,14 @@ instance Binary LocMsg where
       <*  getWord8
 
   put l = do
-    putWord8 undefined
+    let opStatus = case locOpStatus l of
+          Undeclared -> 0
+          Ground -> 1
+          Airborne -> 2
+          Emergency -> 3
+          RemoteIDSystemFailure -> 4
+          OpStatusRsvd n -> n
+    putWord8 $ opStatus `shiftL` 4 .|. undefined
     putWord8 undefined
     putWord8 undefined
     putWord8 undefined
