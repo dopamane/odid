@@ -326,7 +326,8 @@ instance Pretty OpLocSrc where
 data SysMsg = SysMsg
   { sysClassType :: ClassType, sysOpSrcType :: OpLocSrc, sysOpLat :: Double
   , sysOpLon :: Double, sysArCnt :: Word16, sysArRad :: Integer, sysArCeil :: Double
-  , sysArFloor :: Double, sysUAClass :: Word8, sysOpAlt :: Word16, sysTimestamp :: Word32
+  , sysArFloor :: Double, sysUAClass :: Word8, sysOpAlt :: Double, sysTimestamp :: Word32
+  , sysRsvd :: Word8
   }
   deriving (Eq, Read, Show)
 
@@ -346,12 +347,12 @@ instance Binary SysMsg where
      <*> fmap ((/ 10 ^ seven) . fromIntegral) getInt32le
      <*> getWord16le
      <*> fmap ((* 10) . fromIntegral) getWord8
-     <*> fmap (subtract 1000 . (0.5 *) . fromIntegral) getWord16le
+     <*> fmap decodeAlt getWord16le
      <*> fmap decodeAlt getWord16le
      <*> getWord8
-     <*> getWord16le
+     <*> fmap decodeAlt getWord16le
      <*> getWord32le
-     <*  getWord8
+     <*> getWord8
 
   put m = do
     putWord8 $ classTy `shiftL` 2 .|. fromIntegral (fromEnum $ sysOpSrcType m)
@@ -361,6 +362,10 @@ instance Binary SysMsg where
     putWord8 $ fromIntegral $ sysArRad m `div` 10
     putWord16le $ encodeAlt $ sysArCeil m
     putWord16le $ encodeAlt $ sysArFloor m
+    putWord8 undefined
+    putWord16le $ encodeAlt $ sysOpAlt m
+    putWord32le undefined
+    putWord8 $ sysRsvd m
     where
       classTy = case sysClassType m of
         ClassTypeUndeclared -> 0
