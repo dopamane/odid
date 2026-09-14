@@ -289,7 +289,21 @@ instance Binary LocMsg where
       <*> getWord16le
       <*> getWord8
       <*  getWord8
-  put = undefined
+
+  put l = do
+    putWord8 undefined
+    putWord8 undefined
+    putWord8 undefined
+    putWord8 undefined
+    putWord32le undefined
+    putWord32le undefined
+    putWord16le undefined
+    putWord16le undefined
+    putWord16le undefined
+    putWord8 undefined
+    putWord8 undefined
+    putWord16le undefined
+    putWord8 undefined
 
 instance Pretty LocMsg where
   pretty = viaShow
