@@ -16,6 +16,7 @@ import Data.Bits
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.ByteString.Lazy.Char8 as BSC
+import Data.Function
 import Data.Int
 import Data.Word
 import Numeric
@@ -256,11 +257,11 @@ data HeightType = AboveTakeoff | AGL
 -- | Location message
 data LocMsg = LocMsg
   { locOpStatus :: OpStatus, locFlagsRsvd :: Bool, locFlagsHeightType :: HeightType
-  , locFlagsDir :: Bool, locFlagsMult :: Bool, locTrackDir :: Word8, locSpeed :: Word8
+  , locFlagsDir :: Bool, locFlagsMult :: Bool, locTrackDir :: Integer, locSpeed :: Word8
   , locVertSpeed :: Word8, locLat :: Double, locLon :: Double
   , locPresAlt :: Double, locGeoAlt :: Double, locHeight :: Double
   , locVertHorzAcc :: Word8, locBaroAltAccSpeedAcc :: Word8
-  , locTimestamp :: Word16, locTimestampAcc :: Word8
+  , locTimestamp :: Word16, locTimestampAcc :: Word8, locRsvd :: Word8
   }
   deriving (Eq, Read, Show)
 
@@ -278,9 +279,9 @@ instance Binary LocMsg where
         ht = if testBit w8 2 then AGL else AboveTakeoff
         dir = testBit w8 1
         mul = testBit w8 0
-    LocMsg opStatus flgsRsvd ht dir mul
+    trackDir <- applyWhen dir (+ 180) . fromIntegral <$> getWord8
+    LocMsg opStatus flgsRsvd ht dir mul trackDir
       <$> getWord8
-      <*> getWord8
       <*> getWord8
       <*> fmap undefined getInt32le
       <*> fmap undefined getInt32le
@@ -291,7 +292,7 @@ instance Binary LocMsg where
       <*> getWord8
       <*> getWord16le
       <*> getWord8
-      <*  getWord8
+      <*> getWord8
 
   put l = do
     let opStatus = case locOpStatus l of
@@ -305,15 +306,18 @@ instance Binary LocMsg where
     putWord8 undefined
     putWord8 undefined
     putWord8 undefined
-    putWord32le undefined
-    putWord32le undefined
-    putWord16le undefined
-    putWord16le undefined
+    putInt32le undefined
+    putInt32le undefined
+    putWord16le $ encodeAlt $ locPresAlt l
+    putWord16le $ encodeAlt $ locGeoAlt l
+    putWord16le $ encodeAlt $ locHeight l
+    let vAcc = undefined
+        hAcc = undefined
+    putWord8 $ vAcc `shiftL` 4 .|. hAcc
+    putWord8 undefined
     putWord16le undefined
     putWord8 undefined
-    putWord8 undefined
-    putWord16le undefined
-    putWord8 undefined
+    putWord8 $ locRsvd l
 
 instance Pretty LocMsg where
   pretty = viaShow
