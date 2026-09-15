@@ -283,8 +283,8 @@ instance Binary LocMsg where
     speed <- getWord8
     vertSpeed <- (* 0.5) . fromIntegral <$> getInt8
     LocMsg opStatus flgsRsvd ht dir mul trackDir speed vertSpeed
-      <$> fmap undefined getInt32le
-      <*> fmap undefined getInt32le
+      <$> fmap decLatLon getInt32le
+      <*> fmap decLatLon getInt32le
       <*> fmap decodeAlt getWord16le
       <*> fmap decodeAlt getWord16le
       <*> fmap decodeAlt getWord16le
@@ -357,8 +357,8 @@ instance Binary SysMsg where
          1 -> Dynamic
          _ -> Fixed
    SysMsg classType srcType
-     <$> fmap ((/ 10 ^ seven) . fromIntegral) getInt32le
-     <*> fmap ((/ 10 ^ seven) . fromIntegral) getInt32le
+     <$> fmap decLatLon getInt32le
+     <*> fmap decLatLon getInt32le
      <*> getWord16le
      <*> fmap ((* 10) . fromIntegral) getWord8
      <*> fmap decodeAlt getWord16le
@@ -370,8 +370,8 @@ instance Binary SysMsg where
 
   put m = do
     putWord8 $ classTy `shiftL` 2 .|. fromIntegral (fromEnum $ sysOpSrcType m)
-    putInt32le $ truncate $ sysOpLat m * 10 ^ seven
-    putInt32le $ truncate $ sysOpLon m * 10 ^ seven
+    putInt32le $ encLatLon $ sysOpLat m
+    putInt32le $ encLatLon $ sysOpLon m
     putWord16le $ sysArCnt m
     putWord8 $ fromIntegral $ sysArRad m `div` 10
     putWord16le $ encodeAlt $ sysArCeil m
@@ -386,17 +386,8 @@ instance Binary SysMsg where
         EuroUnion -> 1
         ClassTypeRsvd r -> r
 
-encodeAlt :: Double -> Word16
-encodeAlt x = truncate $ (x + 1000) * 2
-
-decodeAlt :: Word16 -> Double
-decodeAlt x = fromIntegral x * 0.5 - 1000
-
 instance Pretty SysMsg where
   pretty = viaShow
-
-seven :: Int
-seven = 7
 
 data AuthMsg = AuthMsg
   deriving (Eq, Read, Show)
@@ -407,3 +398,18 @@ instance Binary AuthMsg where
 
 instance Pretty AuthMsg where
   pretty = viaShow
+
+encodeAlt :: Double -> Word16
+encodeAlt x = truncate $ (x + 1000) * 2
+
+decodeAlt :: Word16 -> Double
+decodeAlt x = fromIntegral x * 0.5 - 1000
+
+encLatLon :: Double -> Int32
+encLatLon = undefined
+
+decLatLon :: Int32 -> Double
+decLatLon = (/ latLonMult) . fromIntegral
+
+latLonMult :: Double
+latLonMult = 10 ^ (7 :: Int)
