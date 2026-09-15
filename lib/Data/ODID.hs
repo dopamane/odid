@@ -257,7 +257,7 @@ data HeightType = AboveTakeoff | AGL
 -- | Location message
 data LocMsg = LocMsg
   { locOpStatus :: OpStatus, locFlagsRsvd :: Bool, locFlagsHeightType :: HeightType
-  , locFlagsDir :: Bool, locFlagsMult :: Bool, locTrackDir :: Integer, locSpeed :: Word8
+  , locFlagsDir :: Bool, locFlagsMult :: Bool, locTrackDir :: Integer, locSpeed :: Double
   , locVertSpeed :: Double, locLat :: Double, locLon :: Double
   , locPresAlt :: Double, locGeoAlt :: Double, locHeight :: Double
   , locVertHorzAcc :: Word8, locBaroAltAccSpeedAcc :: Word8
@@ -280,7 +280,7 @@ instance Binary LocMsg where
         dir = testBit w8 1
         mul = testBit w8 0
     trackDir <- applyWhen dir (+ 180) . fromIntegral <$> getWord8
-    speed <- getWord8
+    speed <- decSpeed mul . fromIntegral <$> getWord8
     vertSpeed <- (* 0.5) . fromIntegral <$> getInt8
     LocMsg opStatus flgsRsvd ht dir mul trackDir speed vertSpeed
       <$> fmap decLatLon getInt32le
@@ -293,6 +293,8 @@ instance Binary LocMsg where
       <*> getWord16le
       <*> getWord8
       <*> getWord8
+    where
+      decSpeed mul s = if mul then s * 0.25 else s * 0.75 + 255 * 0.25
 
   put l = do
     let opStatus = case locOpStatus l of
