@@ -305,7 +305,7 @@ instance Binary LocMsg where
           RemoteIDSystemFailure -> 4
           OpStatusRsvd n -> n
     putWord8 $ opStatus `shiftL` 4 .|. undefined
-    putWord8 undefined
+    putWord8 $ fromIntegral $ applyWhen (locTrackDir l >= 180) (subtract 180) $ locTrackDir l
     putWord8 undefined
     putInt8 $ truncate $ locVertSpeed l * 2
     putInt32le undefined
@@ -408,7 +408,7 @@ decodeAlt :: Word16 -> Double
 decodeAlt x = fromIntegral x * 0.5 - 1000
 
 encLatLon :: Double -> Int32
-encLatLon = undefined
+encLatLon = truncate . (* latLonMult)
 
 decLatLon :: Int32 -> Double
 decLatLon = (/ latLonMult) . fromIntegral
