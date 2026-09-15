@@ -240,7 +240,8 @@ instance Pretty VertAcc where
 
 -- | Speed Accuracy. This is the same enumeration scale and values from ADS-B NACv.
 -- 95 % accuracy bound.
-data SpeedAcc = GTE10MS | LT10MS | LT3MS | LT1MS | LT03MS | SpeedAccRsvd
+data SpeedAcc = GTE10MS | LT10MS | LT3MS | LT1MS | LT03MS | SpeedAccRsvd Word8
+  deriving (Eq, Read, Show)
 
 instance Pretty SpeedAcc where
   pretty a = case a of
@@ -249,7 +250,7 @@ instance Pretty SpeedAcc where
     LT3MS -> "<3 m/s"
     LT1MS -> "<1 m/s"
     LT03MS -> "<0.3 m/s"
-    SpeedAccRsvd -> "Reserved"
+    SpeedAccRsvd n -> "Reserved" <+> pretty n
 
 data HeightType = AboveTakeoff | AGL
   deriving (Eq, Read, Show)
@@ -260,7 +261,7 @@ data LocMsg = LocMsg
   , locFlagsDir :: Bool, locFlagsMult :: Bool, locTrackDir :: Integer, locSpeed :: Double
   , locVertSpeed :: Double, locLat :: Double, locLon :: Double
   , locPresAlt :: Double, locGeoAlt :: Double, locHeight :: Double
-  , locVertHorzAcc :: Word8, locBaroAltAccSpeedAcc :: Word8
+  , locVertHorzAcc :: Word8, locBaroAltAccSpeedAcc :: Word8, locSpeedAcc :: SpeedAcc
   , locTimestamp :: Word16
   , locTStampAccRsvd :: Word8, locTStampAcc :: Double -- ^ timestamp accuracy seconds, 0.1 s res
   , locRsvd :: Word8
@@ -291,11 +292,18 @@ instance Binary LocMsg where
     hgt  <- decodeAlt <$> getWord16le
     vhacc <- getWord8
     bacc <- getWord8
+    let speedAcc = case bacc .&. 0xF of
+          0 -> GTE10MS
+          1 -> LT10MS
+          2 -> LT3MS
+          3 -> LT1MS
+          4 -> LT03MS
+          n -> SpeedAccRsvd n
     tstmp <- getWord16le
     tstmprsvdacc <- getWord8
     let tstmpacc = fromIntegral (tstmprsvdacc .&. 0xF) * 0.1
     LocMsg opStatus flgsRsvd ht dir mul trackDir speed vertSpeed lat
-      lon palt galt hgt vhacc bacc tstmp (tstmprsvdacc `shiftR` 4) tstmpacc <$> getWord8
+      lon palt galt hgt vhacc bacc speedAcc tstmp (tstmprsvdacc `shiftR` 4) tstmpacc <$> getWord8
     where
       decSpeed mul s = if mul then s * 0.25 else s * 0.75 + 255 * 0.25
 
