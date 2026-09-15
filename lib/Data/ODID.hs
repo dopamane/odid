@@ -261,7 +261,9 @@ data LocMsg = LocMsg
   , locVertSpeed :: Double, locLat :: Double, locLon :: Double
   , locPresAlt :: Double, locGeoAlt :: Double, locHeight :: Double
   , locVertHorzAcc :: Word8, locBaroAltAccSpeedAcc :: Word8
-  , locTimestamp :: Word16, locTimestampAcc :: Word8, locRsvd :: Word8
+  , locTimestamp :: Word16
+  , locTStampAccRsvd :: Word8, locTStampAcc :: Double -- ^ timestamp accuracy seconds, 0.1 s res
+  , locRsvd :: Word8
   }
   deriving (Eq, Read, Show)
 
@@ -282,17 +284,18 @@ instance Binary LocMsg where
     trackDir <- applyWhen dir (+ 180) . fromIntegral <$> getWord8
     speed <- decSpeed mul . fromIntegral <$> getWord8
     vertSpeed <- (* 0.5) . fromIntegral <$> getInt8
-    LocMsg opStatus flgsRsvd ht dir mul trackDir speed vertSpeed
-      <$> fmap decLatLon getInt32le
-      <*> fmap decLatLon getInt32le
-      <*> fmap decodeAlt getWord16le
-      <*> fmap decodeAlt getWord16le
-      <*> fmap decodeAlt getWord16le
-      <*> getWord8
-      <*> getWord8
-      <*> getWord16le
-      <*> getWord8
-      <*> getWord8
+    lat <- decLatLon <$> getInt32le
+    lon <- decLatLon <$> getInt32le
+    palt <- decodeAlt <$> getWord16le
+    galt <- decodeAlt <$> getWord16le
+    hgt  <- decodeAlt <$> getWord16le
+    vhacc <- getWord8
+    bacc <- getWord8
+    tstmp <- getWord16le
+    tstmprsvdacc <- getWord8
+    let tstmpacc = fromIntegral (tstmprsvdacc .&. 0xF) * 0.1
+    LocMsg opStatus flgsRsvd ht dir mul trackDir speed vertSpeed lat
+      lon palt galt hgt vhacc bacc tstmp (tstmprsvdacc `shiftR` 4) tstmpacc <$> getWord8
     where
       decSpeed mul s = if mul then s * 0.25 else s * 0.75 + 255 * 0.25
 
@@ -308,8 +311,8 @@ instance Binary LocMsg where
     putWord8 $ fromIntegral $ applyWhen (locTrackDir l >= 180) (subtract 180) $ locTrackDir l
     putWord8 undefined
     putInt8 $ truncate $ locVertSpeed l * 2
-    putInt32le undefined
-    putInt32le undefined
+    putInt32le $ encLatLon $ locLat l
+    putInt32le $ encLatLon $ locLon l
     putWord16le $ encodeAlt $ locPresAlt l
     putWord16le $ encodeAlt $ locGeoAlt l
     putWord16le $ encodeAlt $ locHeight l
@@ -318,7 +321,7 @@ instance Binary LocMsg where
     putWord8 $ vAcc `shiftL` 4 .|. hAcc
     putWord8 undefined
     putWord16le undefined
-    putWord8 undefined
+    putWord8 $ locTStampAccRsvd l `shiftL` 4 .|. truncate (locTStampAcc l / 0.1)
     putWord8 $ locRsvd l
 
 instance Pretty LocMsg where
