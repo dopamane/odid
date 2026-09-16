@@ -262,7 +262,7 @@ data LocMsg = LocMsg
   , locVertSpeed :: Double, locLat :: Double, locLon :: Double
   , locPresAlt :: Double, locGeoAlt :: Double, locHeight :: Double
   , locVertHorzAcc :: Word8, locBaroAltAccSpeedAcc :: Word8, locSpeedAcc :: SpeedAcc
-  , locTimestamp :: Word16
+  , locTimestamp :: Double -- ^ seconds after the hour
   , locTStampAccRsvd :: Word8, locTStampAcc :: Double -- ^ timestamp accuracy seconds, 0.1 s res
   , locRsvd :: Word8
   }
@@ -299,7 +299,7 @@ instance Binary LocMsg where
           3 -> LT1MS
           4 -> LT03MS
           n -> SpeedAccRsvd n
-    tstmp <- getWord16le
+    tstmp <- (* 0.1) . fromIntegral <$> getWord16le
     tstmprsvdacc <- getWord8
     let tstmpacc = fromIntegral (tstmprsvdacc .&. 0xF) * 0.1
     LocMsg opStatus flgsRsvd ht dir mul trackDir speed vertSpeed lat
@@ -328,7 +328,7 @@ instance Binary LocMsg where
         hAcc = undefined
     putWord8 $ vAcc `shiftL` 4 .|. hAcc
     putWord8 undefined
-    putWord16le undefined
+    putWord16le $ truncate $ locTimestamp l / 0.1
     putWord8 $ locTStampAccRsvd l `shiftL` 4 .|. truncate (locTStampAcc l / 0.1)
     putWord8 $ locRsvd l
 
