@@ -328,13 +328,6 @@ instance Binary LocMsg where
       decSpeed mul s = if mul then s * 0.25 else s * 0.75 + 255 * 0.25
 
   put l = do
-    let opStatus = case locOpStatus l of
-          Undeclared -> 0
-          Ground -> 1
-          Airborne -> 2
-          Emergency -> 3
-          RemoteIDSystemFailure -> 4
-          OpStatusRsvd n -> n
     putWord8 $ opStatus `shiftL` 4 .|. undefined
     putWord8 $ fromIntegral $ applyWhen (locTrackDir l >= 180) (subtract 180) $ locTrackDir l
     putWord8 undefined
@@ -344,35 +337,43 @@ instance Binary LocMsg where
     putWord16le $ encodeAlt $ locPresAlt l
     putWord16le $ encodeAlt $ locGeoAlt l
     putWord16le $ encodeAlt $ locHeight l
-    let vacc = case locVertAcc l of
-          VertAccGTE150M -> 0
-          VertAccLT150M  -> 1
-          VertAccLT45M   -> 2
-          VertAccLT25M   -> 3
-          VertAccLT10M   -> 4
-          VertAccLT3M    -> 5
-          VertAccLT1M    -> 6
-          VertAccRsvd r  -> r
-        hAcc = case locHorzAcc l of
-          GT10NM         -> 0
-          LT10NM         -> 1
-          LT4NM          -> 2
-          LT2NM          -> 3
-          LT1NM          -> 4
-          LT05NM         -> 5
-          LT03NM         -> 6
-          LT01NM         -> 7
-          LT005NM        -> 8
-          LT30M          -> 9
-          LT10M          -> 10
-          LT3M           -> 11
-          LT1M           -> 12
-          HorizAccRsvd r -> r
     putWord8 $ vacc `shiftL` 4 .|. hAcc
     putWord8 undefined
     putWord16le $ truncate $ locTimestamp l / 0.1
     putWord8 $ locTStampAccRsvd l `shiftL` 4 .|. truncate (locTStampAcc l / 0.1)
     putWord8 $ locRsvd l
+    where
+      opStatus = case locOpStatus l of
+        Undeclared            -> 0
+        Ground                -> 1
+        Airborne              -> 2
+        Emergency             -> 3
+        RemoteIDSystemFailure -> 4
+        OpStatusRsvd n        -> n
+      vacc = case locVertAcc l of
+        VertAccGTE150M -> 0
+        VertAccLT150M  -> 1
+        VertAccLT45M   -> 2
+        VertAccLT25M   -> 3
+        VertAccLT10M   -> 4
+        VertAccLT3M    -> 5
+        VertAccLT1M    -> 6
+        VertAccRsvd r  -> r
+      hAcc = case locHorzAcc l of
+        GT10NM         -> 0
+        LT10NM         -> 1
+        LT4NM          -> 2
+        LT2NM          -> 3
+        LT1NM          -> 4
+        LT05NM         -> 5
+        LT03NM         -> 6
+        LT01NM         -> 7
+        LT005NM        -> 8
+        LT30M          -> 9
+        LT10M          -> 10
+        LT3M           -> 11
+        LT1M           -> 12
+        HorizAccRsvd r -> r
 
 instance Pretty LocMsg where
   pretty = viaShow
