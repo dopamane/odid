@@ -417,27 +417,21 @@ data SysMsg = SysMsg
   deriving (Eq, Read, Show)
 
 instance Binary SysMsg where
-  get = do
-   flags <- getWord8
-   let classType = case 0x7 .&. flags `shiftR` 2 of
-         0 -> ClassTypeUndeclared
-         1 -> EuroUnion
-         n -> ClassTypeRsvd n
-       srcType = case 0x3 .&. flags of
-         0 -> Takeoff
-         1 -> Dynamic
-         _ -> Fixed
-   SysMsg classType srcType
-     <$> fmap decLatLon getInt32le
-     <*> fmap decLatLon getInt32le
-     <*> getWord16le
-     <*> fmap ((* 10) . fromIntegral) getWord8
-     <*> fmap decodeAlt getWord16le
-     <*> fmap decodeAlt getWord16le
-     <*> getWord8
-     <*> fmap decodeAlt getWord16le
-     <*> getWord32le
-     <*> getWord8
+  get = getWord8 >>= \flags -> do
+    let classType = case 0x7 .&. flags `shiftR` 2 of
+          0 -> ClassTypeUndeclared
+          1 -> EuroUnion
+          n -> ClassTypeRsvd n
+        srcType = case 0x3 .&. flags of
+          0 -> Takeoff
+          1 -> Dynamic
+          _ -> Fixed
+    SysMsg classType srcType <$> fmap decLatLon getInt32le
+      <*> fmap decLatLon getInt32le <*> getWord16le
+      <*> fmap ((* 10) . fromIntegral) getWord8
+      <*> fmap decodeAlt getWord16le <*> fmap decodeAlt getWord16le
+      <*> getWord8 <*> fmap decodeAlt getWord16le <*> getWord32le
+      <*> getWord8
 
   put m = do
     putWord8 $ classTy `shiftL` 2 .|. fromIntegral (fromEnum $ sysOpSrcType m)
