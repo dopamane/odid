@@ -19,6 +19,7 @@ import qualified Data.ByteString.Lazy.Char8 as BSC
 import Data.Function
 import Data.Int
 import Data.Word
+import Foreign
 import Numeric
 import Prettyprinter
 
@@ -328,7 +329,8 @@ instance Binary LocMsg where
       decSpeed mul s = if mul then s * 0.25 else s * 0.75 + 255 * 0.25
 
   put l = do
-    putWord8 $ opStatus `shiftL` 4 .|. undefined
+    putWord8 $ opStatus `shiftL` 4 .|. rsvdFlag `shiftL` 3 .|. htTy `shiftL` 2 .|.
+      ewDir `shiftL` 1 .|. spMult
     putWord8 $ fromIntegral $ applyWhen (locTrackDir l >= 180) (subtract 180) $ locTrackDir l
     putWord8 undefined
     putInt8 $ truncate $ locVertSpeed l * 2
@@ -350,6 +352,10 @@ instance Binary LocMsg where
         Emergency             -> 3
         RemoteIDSystemFailure -> 4
         OpStatusRsvd n        -> n
+      rsvdFlag = fromBool $ locFlagsRsvd l
+      htTy = undefined
+      ewDir = undefined
+      spMult = undefined
       vacc = case locVertAcc l of
         VertAccGTE150M -> 0
         VertAccLT150M  -> 1
