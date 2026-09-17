@@ -28,14 +28,14 @@ data Msg = Msg{msgHdr :: MsgHdr, msgBdy :: MsgBdy}
 
 instance Binary Msg where
   get = get >>= \hdr -> Msg hdr <$> case msgType hdr of
-    BasicIDTy -> getWord8 >>= \w8 -> BasicIDBdy <$> getIDType (w8 `shiftR` 4)
-      <*> getUAType (w8 .&. 0xF) <*> getLazyByteString 20 <*> getLazyByteString 3
+    BasicIDTy -> get >>= \b -> BasicIDBdy <$> getIDType (b `shiftR` 4)
+      <*> getUAType (b .&. 0xF) <*> getLazyByteString 20 <*> getLazyByteString 3
     Location -> LocBdy <$> get
     Auth -> AuthBdy <$> get
     SelfIDTy -> SelfIDBdy <$> get <*> getLazyByteString 23
     System -> SysBdy <$> get
-    OperatorID -> OpIDBdy <$> getWord8 <*> getLazyByteString 20 <*> getLazyByteString 3
-    Pack -> getWord8 >>= \sz -> getWord8 >>= \nm ->
+    OperatorID -> OpIDBdy <$> get <*> getLazyByteString 20 <*> getLazyByteString 3
+    Pack -> get >>= \sz -> get >>= \nm ->
       PackBdy sz nm <$> replicateM (fromIntegral nm) get
 
   put (Msg hdr bdy) = put hdr <> case bdy of
@@ -44,10 +44,10 @@ instance Binary Msg where
       putLazyByteString $ uasid <> rsvd
     LocBdy l -> put l
     AuthBdy a -> put a
-    SelfIDBdy ty desc -> putWord8 ty <> putLazyByteString desc
+    SelfIDBdy ty desc -> put ty <> putLazyByteString desc
     SysBdy s -> put s
-    OpIDBdy t i r -> putWord8 t <> putLazyByteString (i <> r)
-    PackBdy sz nm ms -> putWord8 sz <> putWord8 nm <> foldMap put ms
+    OpIDBdy t i r -> put t <> putLazyByteString (i <> r)
+    PackBdy sz nm ms -> put sz <> put nm <> foldMap put ms
 
 instance Pretty Msg where
   pretty (Msg hdr bdy) = vsep [pretty hdr, pretty bdy]
@@ -109,17 +109,15 @@ data MsgHdr = MsgHdr{msgVer :: Word8, msgType :: MsgType}
   deriving (Eq, Read, Show)
 
 instance Binary MsgHdr where
-  get = do
-    w8 <- getWord8
-    MsgHdr (w8 .&. 0xF) <$> case w8 `shiftR` 4 of
-      0x0 -> return BasicIDTy
-      0x1 -> return Location
-      0x2 -> return Auth
-      0x3 -> return SelfIDTy
-      0x4 -> return System
-      0x5 -> return OperatorID
-      0xF -> return Pack
-      n   -> fail $ "cannot read msg type 0x" ++ showHex n ""
+  get = get >>= \b -> MsgHdr (b .&. 0xF) <$> case b `shiftR` 4 of
+    0x0 -> return BasicIDTy
+    0x1 -> return Location
+    0x2 -> return Auth
+    0x3 -> return SelfIDTy
+    0x4 -> return System
+    0x5 -> return OperatorID
+    0xF -> return Pack
+    n   -> fail $ "cannot read msg type 0x" ++ showHex n ""
 
   put (MsgHdr v t) = putWord8 $ tNyb `shiftL` 4 .|. v
     where
