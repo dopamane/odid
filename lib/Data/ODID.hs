@@ -296,7 +296,21 @@ instance Binary LocMsg where
           5 -> VertAccLT3M
           6 -> VertAccLT1M
           r -> VertAccRsvd r
-        hacc = undefined
+        hacc = case vhacc .&. 0xF of
+          0  -> GT10NM
+          1  -> LT10NM
+          2  -> LT4NM
+          3  -> LT2NM
+          4  -> LT1NM
+          5  -> LT05NM
+          6  -> LT03NM
+          7  -> LT01NM
+          8  -> LT005NM
+          9  -> LT30M
+          10 -> LT10M
+          11 -> LT3M
+          12 -> LT1M
+          n  -> HorizAccRsvd n
     bacc <- getWord8
     let speedAcc = case bacc .&. 0xF of
           0 -> GTE10MS
