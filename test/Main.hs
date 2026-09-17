@@ -15,16 +15,22 @@ main = defaultMain $ testGroup "Test.ODID" [testMsgBinaryTrip]
 testMsgBinaryTrip :: TestTree
 testMsgBinaryTrip = testProperty "Msg" $ property $ binTrip =<< forAll genMsg
 
-genMsgHdr :: MonadGen m => m MsgHdr
-genMsgHdr = MsgHdr <$> Gen.word8 (Range.linear 0 15) <*> Gen.element msgTypes
-
 genMsg :: MonadGen m => m Msg
-genMsg = Msg <$> genMsgHdr <*> genBasicIDBdy
-
-genBasicIDBdy :: MonadGen m => m MsgBdy
-genBasicIDBdy = BasicIDBdy <$> Gen.enumBounded <*> Gen.enumBounded
-  <*> BS.fromStrict `fmap` Gen.bytes (Range.singleton 20)
-  <*> BS.fromStrict `fmap` Gen.bytes (Range.singleton 3)
+genMsg = do
+  ver <- Gen.word8 $ Range.linear 0 15
+  typ <- Gen.element msgTypes
+  Msg (MsgHdr ver typ) <$> case typ of
+    BasicIDTy -> BasicIDBdy <$> Gen.enumBounded <*> Gen.enumBounded
+      <*> BS.fromStrict `fmap` Gen.bytes (Range.singleton 20)
+      <*> BS.fromStrict `fmap` Gen.bytes (Range.singleton 3)
+    Location -> Gen.discard
+    Auth -> Gen.discard
+    SelfIDTy -> Gen.discard
+    System -> Gen.discard
+    OperatorID -> OpIDBdy <$> Gen.enumBounded
+      <*> BS.fromStrict `fmap` Gen.bytes (Range.singleton 20)
+      <*> BS.fromStrict `fmap` Gen.bytes (Range.singleton 3)
+    Pack -> Gen.discard
 
 binTrip :: (MonadTest m, Show a, Eq a, Binary a) => a -> m ()
 binTrip d = tripping d encode $ fmap (\(_, _, a) -> a) . decodeOrFail
