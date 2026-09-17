@@ -33,11 +33,11 @@ parser = hsubparser $ mconcat
   ]
 
 msgParser :: Parser Msg
-msgParser = basicIDParser
+msgParser = basicIDParser <|> opIDParser
 
 basicIDParser :: Parser Msg
-basicIDParser = fmap (Msg $ MsgHdr 2 BasicIDTy) $ BasicIDBdy <$> parseIDTy
-  <*> parseUAType <*> parseUASID <*> parseRsvdBytes
+basicIDParser = parserOptionGroup "Basic ID" $ fmap (Msg $ MsgHdr 2 BasicIDTy) $
+  BasicIDBdy <$> parseIDTy <*> parseUAType <*> parseUASID <*> parseRsvdBytes
   where
     parseIDTy = pure IDTypeNone
     parseRsvdBytes = pure $ BS.replicate 3 0x00
@@ -46,12 +46,22 @@ parseUAType :: Parser UAType
 parseUAType = asum $ map mkFlag [None ..]
   where
     mkFlag None = flag None None $ long "none"
+    mkFlag GroundObstacle = flag' GroundObstacle $ long "ground-obstacle"
     mkFlag t = flag' t $ long $ map toLower $ show t
 
 parseUASID :: Parser ByteString
 parseUASID = pad <$> strOption (short 'u' <> long "uasid" <> help "UASID")
+
+opIDParser :: Parser Msg
+opIDParser = parserOptionGroup "Operator ID" $ fmap (Msg $ MsgHdr 2 OperatorID) $
+  OpIDBdy <$> parseOpIDTy <*> parseOpID <*> parseOpIDRsvd
   where
-    pad s = BS.take 20 $ BSC.pack s <> BS.replicate 20 0x00
+    parseOpIDTy = option auto $ short 't' <> help "Operator ID type"
+    parseOpID = fmap pad $ strArgument $ metavar "ID" <> help "ASCII text"
+    parseOpIDRsvd = pure $ BS.replicate 3 0x00
+
+pad :: String -> ByteString
+pad s = BS.take 20 $ BSC.pack s <> BS.replicate 20 0x00
 
 fileArg :: Parser String
 fileArg = strArgument $ metavar "FILE" <> completer (bashCompleter "file")
