@@ -250,7 +250,7 @@ instance Pretty SpeedAcc where
     SpeedAccRsvd n -> "Reserved" <+> pretty n
 
 data HeightType = AboveTakeoff | AGL
-  deriving (Eq, Read, Show)
+  deriving (Bounded, Enum, Eq, Read, Show)
 
 -- | Location message
 data LocMsg = LocMsg
@@ -354,9 +354,9 @@ instance Binary LocMsg where
         RemoteIDSystemFailure -> 4
         OpStatusRsvd n        -> n
       rsvdFlag = fromBool $ locFlagsRsvd l
-      htTy = undefined
-      ewDir = undefined
-      spMult = undefined
+      htTy = fromIntegral $ fromEnum $ locFlagsHeightType l
+      ewDir = fromBool $ locFlagsDir l
+      spMult = fromBool $ locFlagsMult l
       vacc = case locVertAcc l of
         VertAccGTE150M -> 0
         VertAccLT150M  -> 1
