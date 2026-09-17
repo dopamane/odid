@@ -35,7 +35,7 @@ instance Binary Msg where
     Auth -> AuthBdy <$> get
     SelfIDTy -> SelfIDBdy <$> get <*> getLazyByteString 23
     System -> SysBdy <$> get
-    OperatorID -> OpIDBdy <$> getWord8 <*> getLazyByteString 20 <* getByteString 3
+    OperatorID -> OpIDBdy <$> getWord8 <*> getLazyByteString 20 <*> getLazyByteString 3
     Pack -> getWord8 >>= \sz -> getWord8 >>= \nm ->
       PackBdy sz nm <$> replicateM (fromIntegral nm) get
 
@@ -47,7 +47,7 @@ instance Binary Msg where
     AuthBdy a -> put a
     SelfIDBdy ty desc -> putWord8 ty <> putLazyByteString desc
     SysBdy s -> put s
-    OpIDBdy t i -> putWord8 t <> putLazyByteString (i <> BS.replicate 3 0x00)
+    OpIDBdy t i r -> putWord8 t <> putLazyByteString (i <> r)
     PackBdy sz nm ms -> putWord8 sz <> putWord8 nm <> foldMap put ms
 
 instance Pretty Msg where
@@ -138,7 +138,7 @@ instance Pretty MsgHdr where
   pretty (MsgHdr v t) = "v" <> pretty v <+> pretty t
 
 data MsgBdy = BasicIDBdy IDType UAType UASID ByteString | LocBdy LocMsg | AuthBdy AuthMsg
-  | SelfIDBdy Word8 ByteString | SysBdy SysMsg | OpIDBdy Word8 ByteString
+  | SelfIDBdy Word8 ByteString | SysBdy SysMsg | OpIDBdy Word8 ByteString ByteString
   | PackBdy Word8 Word8 [Msg]
   deriving (Eq, Read, Show)
 
@@ -150,7 +150,8 @@ instance Pretty MsgBdy where
     AuthBdy a -> pretty a
     SelfIDBdy ty desc -> vsep [pretty ty, pretty $ BSC.unpack desc]
     SysBdy s -> pretty s
-    OpIDBdy t i -> vsep [pretty t, pretty $ BSC.unpack i]
+    OpIDBdy t i r -> vsep ["Type:" <+> pretty t, "ID:" <+> pretty (BSC.unpack i)
+      , "Rsvd:" <+> pretty (BSC.unpack r)]
     PackBdy sz nm ms -> vsep ["Size=" <> pretty sz <+> "Cnt=" <> pretty nm
       , indent 2 $ vsep $ pretty <$> ms]
 
