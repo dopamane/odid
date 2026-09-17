@@ -53,10 +53,9 @@ instance Pretty Msg where
   pretty (Msg hdr bdy) = vsep [pretty hdr, pretty bdy]
 
 -- | Unmanned aircraft
-data UAType
-  = None | Aeroplane | Heli | Gyro | Hybrid | Ornith | Glider | Kite | FreeBalloon
-  | CaptiveBalloon | Airship | Parachute | Rocket | TetheredPwrAircraft | GroundObstacle
-  | Other
+data UAType = None | Aeroplane | Heli | Gyro | Hybrid | Ornith | Glider | Kite
+  | FreeBalloon | CaptiveBalloon | Airship | Parachute | Rocket
+  | TetheredPwrAircraft | GroundObstacle | Other
   deriving (Bounded, Eq, Enum, Read, Show)
 
 instance Pretty UAType where
