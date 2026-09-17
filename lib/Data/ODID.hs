@@ -353,7 +353,21 @@ instance Binary LocMsg where
           VertAccLT3M    -> 5
           VertAccLT1M    -> 6
           VertAccRsvd r  -> r
-        hAcc = undefined
+        hAcc = case locHorzAcc l of
+          GT10NM         -> 0
+          LT10NM         -> 1
+          LT4NM          -> 2
+          LT2NM          -> 3
+          LT1NM          -> 4
+          LT05NM         -> 5
+          LT03NM         -> 6
+          LT01NM         -> 7
+          LT005NM        -> 8
+          LT30M          -> 9
+          LT10M          -> 10
+          LT3M           -> 11
+          LT1M           -> 12
+          HorizAccRsvd r -> r
     putWord8 $ vacc `shiftL` 4 .|. hAcc
     putWord8 undefined
     putWord16le $ truncate $ locTimestamp l / 0.1
