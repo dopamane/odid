@@ -25,7 +25,8 @@ genMsg = do
       <*> BS.fromStrict `fmap` Gen.bytes (Range.singleton 3)
     Location -> Gen.discard
     Auth -> Gen.discard
-    SelfIDTy -> Gen.discard
+    SelfIDTy -> SelfIDBdy <$> Gen.enumBounded
+      <*> BS.fromStrict `fmap` Gen.bytes (Range.singleton 23)
     System -> Gen.discard
     OperatorID -> OpIDBdy <$> Gen.enumBounded
       <*> BS.fromStrict `fmap` Gen.bytes (Range.singleton 20)
