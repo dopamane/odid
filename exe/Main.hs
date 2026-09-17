@@ -6,6 +6,7 @@ import Data.Binary.Put
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.ByteString.Lazy.Char8 as BSC
+import Data.Char
 import Data.ODID
 import Options.Applicative
 import Prettyprinter
@@ -39,8 +40,13 @@ basicIDParser = fmap (Msg $ MsgHdr 2 BasicIDTy) $ BasicIDBdy <$> parseIDTy
   <*> parseUAType <*> parseUASID <*> parseRsvdBytes
   where
     parseIDTy = pure IDTypeNone
-    parseUAType = pure None
     parseRsvdBytes = pure $ BS.replicate 3 0x00
+
+parseUAType :: Parser UAType
+parseUAType = asum $ map mkFlag [None ..]
+  where
+    mkFlag None = flag None None $ long "none"
+    mkFlag t = flag' t $ long $ map toLower $ show t
 
 parseUASID :: Parser ByteString
 parseUASID = pad <$> strOption (short 'u' <> long "uasid" <> help "UASID")
