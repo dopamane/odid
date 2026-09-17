@@ -37,10 +37,17 @@ msgParser = basicIDParser <|> opIDParser
 
 basicIDParser :: Parser Msg
 basicIDParser = parserOptionGroup "Basic ID" $ fmap (Msg $ MsgHdr 2 BasicIDTy) $
-  BasicIDBdy <$> parseIDTy <*> parseUAType <*> parseUASID <*> parseRsvdBytes
+  BasicIDBdy <$> parseIDType <*> parseUAType <*> parseUASID <*> parseRsvdBytes
   where
-    parseIDTy = pure IDTypeNone
     parseRsvdBytes = pure $ BS.replicate 3 0x00
+
+parseIDType :: Parser IDType
+parseIDType = serialNum <|> caaregid <|> utmuuid <|> specSess <|> pure IDTypeNone
+  where
+    serialNum = flag' SerialNum $ long "serial-num" <> help (show $ pretty SerialNum)
+    caaregid = flag' CAARegID $ long "caa-reg-id" <> help (show $ pretty CAARegID)
+    utmuuid = flag' UTMUUID $ long "utm-uuid" <> help (show $ pretty UTMUUID)
+    specSess = flag' SpecificSessionID $ long "session" <> help (show $ pretty SpecificSessionID)
 
 parseUAType :: Parser UAType
 parseUAType = asum $ map mkFlag [None ..]
