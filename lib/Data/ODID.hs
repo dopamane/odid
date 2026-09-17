@@ -235,6 +235,17 @@ instance Pretty VertAcc where
     VertAccLT1M    -> "<1 m"
     VertAccRsvd n  -> "Reserved" <+> pretty n
 
+readVertAcc :: Word8 -> VertAcc
+readVertAcc n = case n of
+  0 -> VertAccGTE150M
+  1 -> VertAccLT150M
+  2 -> VertAccLT45M
+  3 -> VertAccLT25M
+  4 -> VertAccLT10M
+  5 -> VertAccLT3M
+  6 -> VertAccLT1M
+  _ -> VertAccRsvd n
+
 -- | Speed Accuracy. This is the same enumeration scale and values from ADS-B NACv.
 -- 95 % accuracy bound.
 data SpeedAcc = GTE10MS | LT10MS | LT3MS | LT1MS | LT03MS | SpeedAccRsvd Word8
@@ -259,7 +270,7 @@ data LocMsg = LocMsg
   , locVertSpeed :: Double, locLat :: Double, locLon :: Double
   , locPresAlt :: Double, locGeoAlt :: Double, locHeight :: Double
   , locVertAcc :: VertAcc, locHorzAcc :: HorizAcc
-  , locBaroAltAccSpeedAcc :: Word8, locSpeedAcc :: SpeedAcc
+  , locBaroAltAcc :: VertAcc, locSpeedAcc :: SpeedAcc
   , locTimestamp :: Double -- ^ seconds after the hour
   , locTStampAccRsvd :: Word8, locTStampAcc :: Double -- ^ timestamp accuracy seconds, 0.1 s res
   , locRsvd :: Word8
@@ -289,15 +300,7 @@ instance Binary LocMsg where
     galt <- decodeAlt <$> getWord16le
     hgt  <- decodeAlt <$> getWord16le
     vhacc <- getWord8
-    let vacc = case vhacc `shiftR` 4 of
-          0 -> VertAccGTE150M
-          1 -> VertAccLT150M
-          2 -> VertAccLT45M
-          3 -> VertAccLT25M
-          4 -> VertAccLT10M
-          5 -> VertAccLT3M
-          6 -> VertAccLT1M
-          r -> VertAccRsvd r
+    let vacc = readVertAcc $ vhacc `shiftR` 4
         hacc = case vhacc .&. 0xF of
           0  -> GT10NM
           1  -> LT10NM
@@ -314,7 +317,8 @@ instance Binary LocMsg where
           12 -> LT1M
           n  -> HorizAccRsvd n
     bacc <- getWord8
-    let speedAcc = case bacc .&. 0xF of
+    let baroAcc = readVertAcc $ bacc `shiftR` 4
+        speedAcc = case bacc .&. 0xF of
           0 -> GTE10MS
           1 -> LT10MS
           2 -> LT3MS
@@ -325,7 +329,8 @@ instance Binary LocMsg where
     tstmprsvdacc <- getWord8
     let tstmpacc = fromIntegral (tstmprsvdacc .&. 0xF) * 0.1
     LocMsg opStatus flgsRsvd ht dir mul trackDir speed vertSpeed lat
-      lon palt galt hgt vacc hacc bacc speedAcc tstmp (tstmprsvdacc `shiftR` 4) tstmpacc <$> getWord8
+      lon palt galt hgt vacc hacc baroAcc speedAcc tstmp
+      (tstmprsvdacc `shiftR` 4) tstmpacc <$> getWord8
     where
       decSpeed mul s = if mul then s * 0.25 else s * 0.75 + 255 * 0.25
 
@@ -341,7 +346,7 @@ instance Binary LocMsg where
     putWord16le $ encodeAlt $ locGeoAlt l
     putWord16le $ encodeAlt $ locHeight l
     putWord8 $ vacc `shiftL` 4 .|. hAcc
-    putWord8 undefined
+    putWord8 $ bacc `shiftL` 4 .|. spAcc
     putWord16le $ truncate $ locTimestamp l / 0.1
     putWord8 $ locTStampAccRsvd l `shiftL` 4 .|. truncate (locTStampAcc l / 0.1)
     putWord8 $ locRsvd l
@@ -381,6 +386,8 @@ instance Binary LocMsg where
         LT3M           -> 11
         LT1M           -> 12
         HorizAccRsvd r -> r
+      bacc = undefined
+      spAcc = undefined
 
 instance Pretty LocMsg where
   pretty = viaShow
