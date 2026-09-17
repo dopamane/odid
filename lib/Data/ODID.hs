@@ -246,6 +246,17 @@ readVertAcc n = case n of
   6 -> VertAccLT1M
   _ -> VertAccRsvd n
 
+writeVertAcc :: VertAcc -> Word8
+writeVertAcc vacc = case vacc of
+  VertAccGTE150M -> 0
+  VertAccLT150M  -> 1
+  VertAccLT45M   -> 2
+  VertAccLT25M   -> 3
+  VertAccLT10M   -> 4
+  VertAccLT3M    -> 5
+  VertAccLT1M    -> 6
+  VertAccRsvd r  -> r
+
 -- | Speed Accuracy. This is the same enumeration scale and values from ADS-B NACv.
 -- 95 % accuracy bound.
 data SpeedAcc = GTE10MS | LT10MS | LT3MS | LT1MS | LT03MS | SpeedAccRsvd Word8
@@ -345,8 +356,8 @@ instance Binary LocMsg where
     putWord16le $ encodeAlt $ locPresAlt l
     putWord16le $ encodeAlt $ locGeoAlt l
     putWord16le $ encodeAlt $ locHeight l
-    putWord8 $ vacc `shiftL` 4 .|. hAcc
-    putWord8 $ bacc `shiftL` 4 .|. spAcc
+    putWord8 $ writeVertAcc (locVertAcc l) `shiftL` 4 .|. hAcc
+    putWord8 $ writeVertAcc (locBaroAltAcc l) `shiftL` 4 .|. spAcc
     putWord16le $ truncate $ locTimestamp l / 0.1
     putWord8 $ locTStampAccRsvd l `shiftL` 4 .|. truncate (locTStampAcc l / 0.1)
     putWord8 $ locRsvd l
@@ -362,15 +373,6 @@ instance Binary LocMsg where
       htTy = fromIntegral $ fromEnum $ locFlagsHeightType l
       ewDir = fromBool $ locFlagsDir l
       spMult = fromBool $ locFlagsMult l
-      vacc = case locVertAcc l of
-        VertAccGTE150M -> 0
-        VertAccLT150M  -> 1
-        VertAccLT45M   -> 2
-        VertAccLT25M   -> 3
-        VertAccLT10M   -> 4
-        VertAccLT3M    -> 5
-        VertAccLT1M    -> 6
-        VertAccRsvd r  -> r
       hAcc = case locHorzAcc l of
         GT10NM         -> 0
         LT10NM         -> 1
@@ -386,7 +388,6 @@ instance Binary LocMsg where
         LT3M           -> 11
         LT1M           -> 12
         HorizAccRsvd r -> r
-      bacc = undefined
       spAcc = undefined
 
 instance Pretty LocMsg where
