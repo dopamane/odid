@@ -384,7 +384,13 @@ instance Binary LocMsg where
         LT3M           -> 11
         LT1M           -> 12
         HorizAccRsvd r -> r
-      spAcc = undefined
+      spAcc = case locSpeedAcc l of
+        GTE10MS        -> 0
+        LT10MS         -> 1
+        LT3MS          -> 2
+        LT1MS          -> 3
+        LT03MS         -> 4
+        SpeedAccRsvd r -> r
 
 instance Pretty LocMsg where
   pretty = viaShow
