@@ -3,7 +3,7 @@
 -- | Open Drone ID
 module Data.ODID
   ( Msg(..), MsgHdr(..), MsgType(..), msgTypes, MsgBdy(..)
-  , UASID, UAType(..)
+  , IDType(..), UASID, UAType(..)
   , SysMsg(..), ClassType(..), OpLocSrc(..)
   , AuthMsg(..), LocMsg(..)
   ) where
@@ -28,9 +28,8 @@ data Msg = Msg{msgHdr :: MsgHdr, msgBdy :: MsgBdy}
 
 instance Binary Msg where
   get = get >>= \hdr -> Msg hdr <$> case msgType hdr of
-    BasicIDTy -> getWord8 >>= \w8 ->
-      BasicIDBdy <$> getIDType (w8 `shiftR` 4) <*> getUAType (w8 .&. 0xF)
-                 <*> getLazyByteString 20 <*> getLazyByteString 3
+    BasicIDTy -> getWord8 >>= \w8 -> BasicIDBdy <$> getIDType (w8 `shiftR` 4)
+      <*> getUAType (w8 .&. 0xF) <*> getLazyByteString 20 <*> getLazyByteString 3
     Location -> LocBdy <$> get
     Auth -> AuthBdy <$> get
     SelfIDTy -> SelfIDBdy <$> get <*> getLazyByteString 23

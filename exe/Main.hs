@@ -3,7 +3,9 @@ module Main (main) where
 import Data.Binary
 import Data.Binary.Get
 import Data.Binary.Put
+import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
+import qualified Data.ByteString.Lazy.Char8 as BSC
 import Data.ODID
 import Options.Applicative
 import Prettyprinter
@@ -30,7 +32,20 @@ parser = hsubparser $ mconcat
   ]
 
 msgParser :: Parser Msg
-msgParser = undefined
+msgParser = basicIDParser
+
+basicIDParser :: Parser Msg
+basicIDParser = fmap (Msg $ MsgHdr 2 BasicIDTy) $ BasicIDBdy <$> parseIDTy
+  <*> parseUAType <*> parseUASID <*> parseRsvdBytes
+  where
+    parseIDTy = pure IDTypeNone
+    parseUAType = pure None
+    parseRsvdBytes = pure $ BS.replicate 3 0x00
+
+parseUASID :: Parser ByteString
+parseUASID = pad <$> strOption (short 'u' <> long "uasid" <> help "UASID")
+  where
+    pad s = BS.take 20 $ BSC.pack s <> BS.replicate 20 0x00
 
 fileArg :: Parser String
 fileArg = strArgument $ metavar "FILE" <> completer (bashCompleter "file")
