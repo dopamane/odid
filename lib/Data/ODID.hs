@@ -26,8 +26,8 @@ data Msg = Msg{msgHdr :: MsgHdr, msgBdy :: MsgBdy}
 
 instance Binary Msg where
   get = get >>= \hdr -> Msg hdr <$> case msgType hdr of
-    BasicIDTy -> get >>= \b -> BasicIDBdy <$> getIDType (b `shiftR` 4)
-      <*> getUAType (b .&. 0xF) <*> getLazyByteString 20 <*> getLazyByteString 3
+    BasicIDTy -> get >>= \b -> BasicIDBdy (getIDType $ b `shiftR` 4)
+      (toEnum $ fromIntegral $ b .&. 0xF) <$> getLazyByteString 20 <*> getLazyByteString 3
     Location -> LocBdy <$> get
     Auth -> AuthBdy <$> get
     SelfIDTy -> SelfIDBdy <$> get <*> getLazyByteString 23
@@ -35,10 +35,25 @@ instance Binary Msg where
     OperatorID -> OpIDBdy <$> get <*> getLazyByteString 20 <*> getLazyByteString 3
     Pack -> get >>= \sz -> get >>= \nm ->
       PackBdy sz nm <$> replicateM (fromIntegral nm) get
+    where
+      getIDType t = case t of
+        0 -> IDTypeNone
+        1 -> SerialNum
+        2 -> CAARegID
+        3 -> UTMUUID
+        4 -> SpecificSessionID
+        n -> IDTypeRsvd n
 
   put (Msg hdr bdy) = put hdr <> case bdy of
     BasicIDBdy t ua uasid rsvd -> do
-      putWord8 $ fromIntegral $ fromEnum t `shiftL` 4 .|. fromEnum ua
+      let ty = case t of
+            IDTypeNone -> 0
+            SerialNum -> 1
+            CAARegID -> 2
+            UTMUUID -> 3
+            SpecificSessionID -> 4
+            IDTypeRsvd r -> r
+      putWord8 $ ty `shiftL` 4 .|. fromIntegral (fromEnum ua)
       putLazyByteString $ uasid <> rsvd
     LocBdy l -> put l
     AuthBdy a -> put a
@@ -74,10 +89,6 @@ instance Pretty UAType where
     TetheredPwrAircraft -> "Tethered Powered Aircraft"
     GroundObstacle -> "Ground Obstacle"
     Other -> "Other"
-
-getUAType :: Word8 -> Get UAType
-getUAType t | t < 16 = return $ toEnum $ fromIntegral t
-            | otherwise = fail $ "cannot read UAType " ++ show t
 
 -- | Operational status
 data OpStatus = Undeclared | Ground | Airborne | Emergency
@@ -152,7 +163,8 @@ instance Pretty MsgBdy where
 type UASID = ByteString
 
 data IDType = IDTypeNone | SerialNum | CAARegID | UTMUUID | SpecificSessionID
-  deriving (Bounded, Eq, Enum, Read, Show)
+  | IDTypeRsvd Word8
+  deriving (Eq, Read, Show)
 
 instance Pretty IDType where
   pretty t = case t of
@@ -161,10 +173,7 @@ instance Pretty IDType where
     CAARegID -> "CAA Assigned Registration ID"
     UTMUUID -> "UTM Assigned UUID"
     SpecificSessionID -> "Specific Session ID"
-
-getIDType :: Word8 -> Get IDType
-getIDType n | n < 5 = return $ toEnum $ fromIntegral n
-            | otherwise = fail $ "cannot read ID type " ++ show n
+    IDTypeRsvd r -> "Reserved" <+> pretty r
 
 -- | Horizontal accuracy. This is the NACp enumeration from ADS-B.
 -- Value 12 was added for a more complete range for UAs. 95 % accuracy bound
@@ -407,7 +416,7 @@ instance Pretty ClassType where
 
 -- | Operator location source type
 data OpLocSrc = Takeoff | Dynamic | Fixed
-  deriving (Enum, Eq, Read, Show)
+  deriving (Bounded, Enum, Eq, Read, Show)
 
 instance Pretty OpLocSrc where
   pretty = viaShow
