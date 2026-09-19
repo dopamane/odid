@@ -413,8 +413,8 @@ instance Pretty OpLocSrc where
 data SysMsg = SysMsg
   { sysClassType :: ClassType, sysOpSrcType :: OpLocSrc, sysOpLat :: Double
   , sysOpLon :: Double, sysArCnt :: Word16, sysArRad :: Integer, sysArCeil :: Double
-  , sysArFloor :: Double, sysUAClass :: Word8, sysOpAlt :: Double, sysTimestamp :: Word32
-  , sysRsvd :: Word8
+  , sysArFloor :: Double, sysClassCat :: Word8, sysClassClass :: Word8
+  , sysOpAlt :: Double, sysTimestamp :: Word32, sysRsvd :: Word8
   }
   deriving (Eq, Read, Show)
 
@@ -428,12 +428,19 @@ instance Binary SysMsg where
           0 -> Takeoff
           1 -> Dynamic
           _ -> Fixed
-    SysMsg classType srcType <$> fmap decLatLon getInt32le
-      <*> fmap decLatLon getInt32le <*> getWord16le
-      <*> fmap ((* 10) . fromIntegral) getWord8
-      <*> fmap decodeAlt getWord16le <*> fmap decodeAlt getWord16le
-      <*> getWord8 <*> fmap decodeAlt getWord16le <*> getWord32le
-      <*> getWord8
+    opLat <- decLatLon <$> getInt32le
+    opLon <- decLatLon <$> getInt32le
+    arCnt <- getWord16le
+    arRad <- (* 10) . fromIntegral <$> getWord8
+    arCeil <- decodeAlt <$> getWord16le
+    arFlor <- decodeAlt <$> getWord16le
+    uaClass <- getWord8
+    let classCat = uaClass `shiftR` 4
+        classClass = uaClass .&. 0xF
+    opAlt <- decodeAlt <$> getWord16le
+    ts <- getWord32le
+    SysMsg classType srcType opLat opLon arCnt arRad arCeil arFlor classCat
+      classClass opAlt ts <$> getWord8
 
   put m = do
     putWord8 $ classTy `shiftL` 2 .|. fromIntegral (fromEnum $ sysOpSrcType m)
@@ -443,11 +450,7 @@ instance Binary SysMsg where
     putWord8 $ fromIntegral $ sysArRad m `div` 10
     putWord16le $ encodeAlt $ sysArCeil m
     putWord16le $ encodeAlt $ sysArFloor m
-    putWord8 $ if sysClassType m == EuroUnion
-      then let catBits = undefined
-               classBits = undefined
-           in catBits `shiftL` 4 .|. classBits
-      else 0
+    putWord8 $ sysClassCat m `shiftL` 4 .|. sysClassClass m
     putWord16le $ encodeAlt $ sysOpAlt m
     putWord32le $ sysTimestamp m
     putWord8 $ sysRsvd m
