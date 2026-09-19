@@ -234,7 +234,7 @@ data VertAcc
 
 instance Pretty VertAcc where
   pretty a = case a of
-    VertAccGTE150M -> ">=150 m"
+    VertAccGTE150M -> ">=150 m or Unknown"
     VertAccLT150M  -> "<150 m"
     VertAccLT45M   -> "<45 m"
     VertAccLT25M   -> "<25 m"
@@ -505,7 +505,21 @@ instance Binary SysMsg where
         ClassCatRsvd r -> r
 
 instance Pretty SysMsg where
-  pretty = viaShow
+  pretty s = vsep
+    [ "Class:" <+> pretty (sysClassType s)
+    , "Op Src:" <+> pretty (sysOpSrcType s)
+    , "Op Lat:" <+> pretty (sysOpLat s) <+> "deg"
+    , "Op Lon:" <+> pretty (sysOpLon s) <+> "deg"
+    , "Area Cnt:" <+> pretty (sysArCnt s)
+    , "Area Rad:" <+> pretty (sysArRad s) <+> "m"
+    , "Area Ceil:" <+> pretty (sysArCeil s) <+> "m"
+    , "Area Floor:" <+> pretty (sysArFloor s) <+> "m"
+    , "UA Category:" <+> pretty (sysClassCat s)
+    , "UA Class:" <+> pretty (sysClassClass s)
+    , "Op Alt:" <+> pretty (sysOpAlt s) <+> "m"
+    , "Timestamp:" <+> pretty (sysTimestamp s)
+    , "Reserved:" <+> pretty (sysRsvd s)
+    ]
 
 data AuthMsg = AuthMsg
   deriving (Eq, Read, Show)
