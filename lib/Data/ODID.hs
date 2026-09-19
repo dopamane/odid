@@ -288,19 +288,18 @@ data LocMsg = LocMsg
   deriving (Eq, Read, Show)
 
 instance Binary LocMsg where
-  get = do
-    w8 <- getWord8
-    let opStatus = case w8 `shiftR` 4 of
+  get = getWord8 >>= \b -> do
+    let opStatus = case b `shiftR` 4 of
           0 -> Undeclared
           1 -> Ground
           2 -> Airborne
           3 -> Emergency
           4 -> RemoteIDSystemFailure
           n -> OpStatusRsvd n
-        flgsRsvd = testBit w8 3
-        ht = if testBit w8 2 then AGL else AboveTakeoff
-        dir = testBit w8 1
-        mul = testBit w8 0
+        flgsRsvd = testBit b 3
+        ht = if testBit b 2 then AGL else AboveTakeoff
+        dir = testBit b 1
+        mul = testBit b 0
     trackDir <- applyWhen dir (+ 180) . fromIntegral <$> getWord8
     speed <- decSpeed mul . fromIntegral <$> getWord8
     vertSpeed <- (* 0.5) . fromIntegral <$> getInt8
@@ -362,37 +361,37 @@ instance Binary LocMsg where
     putWord8 $ locRsvd l
     where
       opStatus = case locOpStatus l of
-        Undeclared            -> 0
-        Ground                -> 1
-        Airborne              -> 2
-        Emergency             -> 3
+        Undeclared -> 0
+        Ground -> 1
+        Airborne -> 2
+        Emergency -> 3
         RemoteIDSystemFailure -> 4
-        OpStatusRsvd n        -> n
+        OpStatusRsvd n -> n
       rsvdFlag = fromBool $ locFlagsRsvd l
       htTy = fromIntegral $ fromEnum $ locFlagsHeightType l
       ewDir = fromBool $ locFlagsDir l
       spMult = fromBool $ locFlagsMult l
       hAcc = case locHorzAcc l of
-        GT10NM         -> 0
-        LT10NM         -> 1
-        LT4NM          -> 2
-        LT2NM          -> 3
-        LT1NM          -> 4
-        LT05NM         -> 5
-        LT03NM         -> 6
-        LT01NM         -> 7
-        LT005NM        -> 8
-        LT30M          -> 9
-        LT10M          -> 10
-        LT3M           -> 11
-        LT1M           -> 12
+        GT10NM -> 0
+        LT10NM -> 1
+        LT4NM -> 2
+        LT2NM -> 3
+        LT1NM -> 4
+        LT05NM -> 5
+        LT03NM -> 6
+        LT01NM -> 7
+        LT005NM -> 8
+        LT30M -> 9
+        LT10M -> 10
+        LT3M -> 11
+        LT1M -> 12
         HorizAccRsvd r -> r
       spAcc = case locSpeedAcc l of
-        GTE10MS        -> 0
-        LT10MS         -> 1
-        LT3MS          -> 2
-        LT1MS          -> 3
-        LT03MS         -> 4
+        GTE10MS -> 0
+        LT10MS -> 1
+        LT3MS -> 2
+        LT1MS -> 3
+        LT03MS -> 4
         SpeedAccRsvd r -> r
 
 instance Pretty LocMsg where
@@ -427,10 +426,7 @@ instance Binary SysMsg where
           0 -> ClassTypeUndeclared
           1 -> EuroUnion
           n -> ClassTypeRsvd n
-        srcType = case 0x3 .&. flags of
-          0 -> Takeoff
-          1 -> Dynamic
-          _ -> Fixed
+        srcType = if testBit flags 1 then Fixed else toEnum $ fromBool $ testBit flags 0
     opLat <- decLatLon <$> getInt32le
     opLon <- decLatLon <$> getInt32le
     arCnt <- getWord16le
