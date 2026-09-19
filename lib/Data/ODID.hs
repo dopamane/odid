@@ -144,7 +144,7 @@ instance Pretty MsgBdy where
       , "UA Type:" <+> pretty uaTy, "UASID:" <+> pretty (BSC.unpack uasid)]
     LocBdy l -> pretty l
     AuthBdy a -> pretty a
-    SelfIDBdy ty desc -> vsep [pretty ty, pretty $ BSC.unpack desc]
+    SelfIDBdy ty desc -> vsep ["Type:" <+> pretty ty, "Desc:" <+> pretty (BSC.unpack desc)]
     SysBdy s -> pretty s
     OpIDBdy t i r -> vsep ["Type:" <+> pretty t, "ID:" <+> pretty (BSC.unpack i)
       , "Rsvd:" <+> pretty (BSC.unpack r)]
@@ -346,7 +346,7 @@ instance Binary LocMsg where
       ewDir `shiftL` 1 .|. spMult
     putWord8 $ fromIntegral $ applyWhen (locTrackDir l >= 180) (subtract 180) $ locTrackDir l
     putWord8 $ round $ encSpeed $ locSpeed l
-    putInt8 $ truncate $ locVertSpeed l * 2
+    putInt8 $ round $ locVertSpeed l * 2
     putInt32le $ encLatLon $ locLat l
     putInt32le $ encLatLon $ locLon l
     putWord16le $ encodeAlt $ locPresAlt l
@@ -354,8 +354,8 @@ instance Binary LocMsg where
     putWord16le $ encodeAlt $ locHeight l
     putWord8 $ writeVertAcc (locVertAcc l) `shiftL` 4 .|. hAcc
     putWord8 $ writeVertAcc (locBaroAltAcc l) `shiftL` 4 .|. spAcc
-    putWord16le $ truncate $ locTimestamp l / 0.1
-    putWord8 $ locTStampAccRsvd l `shiftL` 4 .|. truncate (locTStampAcc l / 0.1)
+    putWord16le $ round $ locTimestamp l / 0.1
+    putWord8 $ locTStampAccRsvd l `shiftL` 4 .|. round (locTStampAcc l / 0.1)
     putWord8 $ locRsvd l
     where
       opStatus = case locOpStatus l of
@@ -443,9 +443,13 @@ instance Binary SysMsg where
     putWord8 $ fromIntegral $ sysArRad m `div` 10
     putWord16le $ encodeAlt $ sysArCeil m
     putWord16le $ encodeAlt $ sysArFloor m
-    putWord8 undefined
+    putWord8 $ if sysClassType m == EuroUnion
+      then let catBits = undefined
+               classBits = undefined
+           in catBits `shiftL` 4 .|. classBits
+      else 0
     putWord16le $ encodeAlt $ sysOpAlt m
-    putWord32le undefined
+    putWord32le $ sysTimestamp m
     putWord8 $ sysRsvd m
     where
       classTy = case sysClassType m of
@@ -467,13 +471,13 @@ instance Pretty AuthMsg where
   pretty = viaShow
 
 encodeAlt :: Double -> Word16
-encodeAlt x = truncate $ (x + 1000) * 2
+encodeAlt x = round $ (x + 1000) * 2
 
 decodeAlt :: Word16 -> Double
 decodeAlt x = fromIntegral x * 0.5 - 1000
 
 encLatLon :: Double -> Int32
-encLatLon = truncate . (* latLonMult)
+encLatLon = round . (* latLonMult)
 
 decLatLon :: Int32 -> Double
 decLatLon = (/ latLonMult) . fromIntegral
