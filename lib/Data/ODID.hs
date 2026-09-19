@@ -282,9 +282,13 @@ instance Pretty SpeedAcc where
 data HeightType = AboveTakeoff | AGL
   deriving (Bounded, Enum, Eq, Read, Show)
 
+instance Pretty HeightType where
+  pretty AboveTakeoff = "Above Takeoff"
+  pretty AGL = "AGL"
+
 -- | Location message
 data LocMsg = LocMsg
-  { locOpStatus :: OpStatus, locFlagsRsvd :: Bool, locFlagsHeightType :: HeightType
+  { locOpStatus :: OpStatus, locFlagsRsvd :: Bool, locHeightType :: HeightType
   , locFlagsDir :: Bool, locFlagsMult :: Bool, locTrackDir :: Integer, locSpeed :: Double
   , locVertSpeed :: Double, locLat :: Double, locLon :: Double
   , locPresAlt :: Double, locGeoAlt :: Double, locHeight :: Double
@@ -377,7 +381,7 @@ instance Binary LocMsg where
         RemoteIDSystemFailure -> 4
         OpStatusRsvd n -> n
       rsvdFlag = fromBool $ locFlagsRsvd l
-      htTy = fromIntegral $ fromEnum $ locFlagsHeightType l
+      htTy = fromIntegral $ fromEnum $ locHeightType l
       ewDir = fromBool $ locFlagsDir l
       spMult = fromBool $ locFlagsMult l
       hAcc = case locHorzAcc l of
@@ -404,7 +408,14 @@ instance Binary LocMsg where
         SpeedAccRsvd r -> r
 
 instance Pretty LocMsg where
-  pretty = viaShow
+  pretty l = vsep ["Operational Status:" <+> pretty (locOpStatus l)
+    , "Flags", indent 2 $ vsep
+      [ "Reserved:" <+> if locFlagsRsvd l then "1" else "0"
+      , "Height type:" <+> pretty (locHeightType l)
+      , "E/W Dir Seg:" <+> if locFlagsDir l then ">=180" else "<180"
+      , "Speed mult:" <+> if locFlagsMult l then "x0.75" else "x0.25"
+      ]
+    ]
 
 data ClassType = ClassTypeUndeclared | EuroUnion | ClassTypeRsvd Word8
   deriving (Eq, Read, Show)
@@ -449,9 +460,8 @@ instance Binary SysMsg where
           2 -> Specific
           3 -> Certified
           r -> ClassCatRsvd r
-        classClass = uaClass .&. 0xF
     SysMsg classType srcType opLat opLon arCnt arRad arCeil arFlor classCat
-      classClass <$> fmap decodeAlt getWord16le <*> getWord32le <*> getWord8
+      (uaClass .&. 0xF) <$> fmap decodeAlt getWord16le <*> getWord32le <*> getWord8
 
   put m = do
     putWord8 $ classTy `shiftL` 2 .|. fromIntegral (fromEnum $ sysOpSrcType m)
