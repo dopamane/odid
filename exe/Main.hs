@@ -7,6 +7,7 @@ import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.ByteString.Lazy.Char8 as BSC
 import Data.Char
+import Data.Int
 import Data.ODID
 import Options.Applicative
 import Prettyprinter
@@ -33,7 +34,7 @@ parser = hsubparser $ mconcat
   ]
 
 msgParser :: Parser Msg
-msgParser = basicIDParser <|> opIDParser
+msgParser = basicIDParser <|> selfIDParser <|> opIDParser
 
 basicIDParser :: Parser Msg
 basicIDParser = parserOptionGroup "Basic ID" $ fmap (Msg $ MsgHdr 2 BasicIDTy) $
@@ -57,18 +58,23 @@ parseUAType = asum $ map mkFlag [None ..]
     mkFlag t = flag' t $ long $ map toLower $ show t
 
 parseUASID :: Parser ByteString
-parseUASID = pad <$> strOption (short 'u' <> long "uasid" <> help "UASID")
+parseUASID = pad 20 <$> strOption (short 'u' <> long "uasid" <> help "UASID")
+
+selfIDParser :: Parser Msg
+selfIDParser = parserOptionGroup "Self ID" $ fmap (Msg $ MsgHdr 2 SelfIDTy) $
+  SelfIDBdy <$> option auto (short 't' <> value 0 <> help "Description type")
+    <*> pad 23 `fmap` strOption (short 's' <> help "Description")
 
 opIDParser :: Parser Msg
 opIDParser = parserOptionGroup "Operator ID" $ fmap (Msg $ MsgHdr 2 OperatorID) $
   OpIDBdy <$> parseOpIDTy <*> parseOpID <*> parseOpIDRsvd
   where
     parseOpIDTy = option auto $ short 't' <> help "Operator ID type"
-    parseOpID = fmap pad $ strArgument $ metavar "ID" <> help "ASCII text"
+    parseOpID = fmap (pad 20) $ strArgument $ metavar "ID" <> help "ASCII text"
     parseOpIDRsvd = pure $ BS.replicate 3 0x00
 
-pad :: String -> ByteString
-pad s = BS.take 20 $ BSC.pack s <> BS.replicate 20 0x00
+pad :: Int64 -> String -> ByteString
+pad n s = BS.take n $ BSC.pack s <> BS.replicate n 0x00
 
 fileArg :: Parser String
 fileArg = strArgument $ metavar "FILE" <> completer (bashCompleter "file")
