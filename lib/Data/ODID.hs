@@ -345,7 +345,7 @@ instance Binary LocMsg where
     putWord8 $ opStatus `shiftL` 4 .|. rsvdFlag `shiftL` 3 .|. htTy `shiftL` 2 .|.
       ewDir `shiftL` 1 .|. spMult
     putWord8 $ fromIntegral $ applyWhen (locTrackDir l >= 180) (subtract 180) $ locTrackDir l
-    putWord8 undefined
+    putWord8 $ round $ encSpeed $ locSpeed l
     putInt8 $ truncate $ locVertSpeed l * 2
     putInt32le $ encLatLon $ locLat l
     putInt32le $ encLatLon $ locLon l
@@ -480,3 +480,8 @@ decLatLon = (/ latLonMult) . fromIntegral
 
 latLonMult :: Double
 latLonMult = 10 ^ (7 :: Int)
+
+encSpeed :: Double -> Double
+encSpeed s | s <= 255 * 0.25 = s / 0.25
+           | s > 255 * 0.25 && s < 254.25 = (s - (255 * 0.25)) / 0.75
+           | otherwise = 254
