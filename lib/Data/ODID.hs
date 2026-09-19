@@ -445,10 +445,8 @@ instance Binary SysMsg where
           3 -> Certified
           r -> ClassCatRsvd r
         classClass = uaClass .&. 0xF
-    opAlt <- decodeAlt <$> getWord16le
-    ts <- getWord32le
     SysMsg classType srcType opLat opLon arCnt arRad arCeil arFlor classCat
-      classClass opAlt ts <$> getWord8
+      classClass <$> fmap decodeAlt getWord16le <*> getWord32le <*> getWord8
 
   put m = do
     putWord8 $ classTy `shiftL` 2 .|. fromIntegral (fromEnum $ sysOpSrcType m)
@@ -458,7 +456,7 @@ instance Binary SysMsg where
     putWord8 $ fromIntegral $ sysArRad m `div` 10
     putWord16le $ encodeAlt $ sysArCeil m
     putWord16le $ encodeAlt $ sysArFloor m
-    putWord8 $ classCat `shiftL` 4 .|. sysClassClass m
+    putWord8 $ classCat `shiftL` 4 .|. sysClassClass m .&. 0xF
     putWord16le $ encodeAlt $ sysOpAlt m
     putWord32le $ sysTimestamp m
     putWord8 $ sysRsvd m
