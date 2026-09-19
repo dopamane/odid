@@ -4,7 +4,7 @@
 module Data.ODID
   ( Msg(..), MsgHdr(..), MsgType(..), msgTypes, MsgBdy(..)
   , IDType(..), UASID, UAType(..)
-  , SysMsg(..), ClassType(..), OpLocSrc(..)
+  , SysMsg(..), ClassType(..), ClassCat(..), OpLocSrc(..)
   , AuthMsg(..), LocMsg(..)
   ) where
 
@@ -14,11 +14,9 @@ import Data.Binary.Get
 import Data.Binary.Put
 import Data.Bits
 import Data.ByteString.Lazy (ByteString)
-import qualified Data.ByteString.Lazy as BS
 import qualified Data.ByteString.Lazy.Char8 as BSC
 import Data.Function
 import Data.Int
-import Data.Word
 import Foreign
 import Numeric
 import Prettyprinter
@@ -205,7 +203,12 @@ instance Pretty HorizAcc where
     LT1M    -> "<1 m"
     HorizAccRsvd n -> "Reserved" <+> pretty n
 
-data EUClassType = Undefined | Open | Specific | Certified | EUClassTypeRsvd
+data ClassCat = Undefined | Open | Specific | Certified | ClassCatRsvd Word8
+  deriving (Eq, Read, Show)
+
+instance Pretty ClassCat where
+  pretty (ClassCatRsvd n) = "Reserved" <+> pretty n
+  pretty c = viaShow c
 
 -- | Vertical Accuracy. This is the GVA enumeration from ADS-B. Values 4–6 were added for
 -- UAs. 95 % accuracy bound.
@@ -413,7 +416,7 @@ instance Pretty OpLocSrc where
 data SysMsg = SysMsg
   { sysClassType :: ClassType, sysOpSrcType :: OpLocSrc, sysOpLat :: Double
   , sysOpLon :: Double, sysArCnt :: Word16, sysArRad :: Integer, sysArCeil :: Double
-  , sysArFloor :: Double, sysClassCat :: Word8, sysClassClass :: Word8
+  , sysArFloor :: Double, sysClassCat :: ClassCat, sysClassClass :: Word8
   , sysOpAlt :: Double, sysTimestamp :: Word32, sysRsvd :: Word8
   }
   deriving (Eq, Read, Show)
@@ -435,7 +438,12 @@ instance Binary SysMsg where
     arCeil <- decodeAlt <$> getWord16le
     arFlor <- decodeAlt <$> getWord16le
     uaClass <- getWord8
-    let classCat = uaClass `shiftR` 4
+    let classCat = case uaClass `shiftR` 4 of
+          0 -> Undefined
+          1 -> Open
+          2 -> Specific
+          3 -> Certified
+          r -> ClassCatRsvd r
         classClass = uaClass .&. 0xF
     opAlt <- decodeAlt <$> getWord16le
     ts <- getWord32le
@@ -450,7 +458,7 @@ instance Binary SysMsg where
     putWord8 $ fromIntegral $ sysArRad m `div` 10
     putWord16le $ encodeAlt $ sysArCeil m
     putWord16le $ encodeAlt $ sysArFloor m
-    putWord8 $ sysClassCat m `shiftL` 4 .|. sysClassClass m
+    putWord8 $ classCat `shiftL` 4 .|. sysClassClass m
     putWord16le $ encodeAlt $ sysOpAlt m
     putWord32le $ sysTimestamp m
     putWord8 $ sysRsvd m
@@ -459,6 +467,12 @@ instance Binary SysMsg where
         ClassTypeUndeclared -> 0
         EuroUnion -> 1
         ClassTypeRsvd r -> r
+      classCat = case sysClassCat m of
+        Undefined -> 0
+        Open -> 1
+        Specific -> 2
+        Certified -> 3
+        ClassCatRsvd r -> r
 
 instance Pretty SysMsg where
   pretty = viaShow
