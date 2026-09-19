@@ -408,13 +408,30 @@ instance Binary LocMsg where
         SpeedAccRsvd r -> r
 
 instance Pretty LocMsg where
-  pretty l = vsep ["Operational Status:" <+> pretty (locOpStatus l)
+  pretty l = vsep
+    ["Operational Status:" <+> pretty (locOpStatus l)
     , "Flags", indent 2 $ vsep
       [ "Reserved:" <+> if locFlagsRsvd l then "1" else "0"
       , "Height type:" <+> pretty (locHeightType l)
       , "E/W Dir Seg:" <+> if locFlagsDir l then ">=180" else "<180"
       , "Speed mult:" <+> if locFlagsMult l then "x0.75" else "x0.25"
       ]
+    , "Track dir:" <+> pretty (locTrackDir l) <+> "deg"
+    , "Speed:" <+> pretty (locSpeed l) <+> "m/s"
+    , "Vert Speed:" <+> pretty (locVertSpeed l) <+> "m/s"
+    , "Latitude:" <+> pretty (locLat l) <+> "deg"
+    , "Longitude:" <+> pretty (locLon l) <+> "deg"
+    , "Pressure Alt:" <+> pretty (locPresAlt l) <+> "m"
+    , "Geodetic Alt:" <+> pretty (locGeoAlt l) <+> "m"
+    , "Height:" <+> pretty (locHeight l) <+> "m"
+    , "Vert Acc:" <+> pretty (locVertAcc l)
+    , "Horz Acc:" <+> pretty (locHorzAcc l)
+    , "Baro Alt Acc:" <+> pretty (locBaroAltAcc l)
+    , "Speed Acc:" <+> pretty (locSpeedAcc l)
+    , "Timestamp:" <+> pretty (locTimestamp l)
+    , "Reserved:" <+> pretty (locTStampAccRsvd l)
+    , "TStamp Acc:" <+> pretty (locTStampAcc l) <+> "s"
+    , "Reserved:" <+> pretty (locRsvd l)
     ]
 
 data ClassType = ClassTypeUndeclared | EuroUnion | ClassTypeRsvd Word8
