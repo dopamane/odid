@@ -9,12 +9,14 @@ import qualified Data.ByteString.Lazy.Char8 as BSC
 import Data.Char
 import Data.Int
 import Data.ODID
+import Data.Version
 import Options.Applicative
+import Paths_odid
 import Prettyprinter
 
 main :: IO ()
 main = do
-  cli <- customExecParser prefs' pinfo
+  cli <- customExecParser prefs' $ pinfo $ showVersion version
   case cli of
     ReadODID fM -> print . pretty . runGet (get :: Get Msg) =<< maybe BS.getContents BS.readFile fM
     WriteODID msg fM -> maybe BS.putStr BS.writeFile fM $ runPut $ put msg
@@ -22,8 +24,8 @@ main = do
 prefs' :: ParserPrefs
 prefs' = prefs $ showHelpOnError <> showHelpOnEmpty
 
-pinfo :: ParserInfo CLI
-pinfo = info (parser <**> helper) $ progDesc "Open Drone ID"
+pinfo :: String -> ParserInfo CLI
+pinfo v = info (parser <**> simpleVersioner v <**> helper) $ progDesc "Open Drone ID"
 
 data CLI = ReadODID (Maybe String) | WriteODID Msg (Maybe String)
 

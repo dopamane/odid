@@ -30,6 +30,8 @@ executable odid
   ghc-options:      -Wall -O2 -threaded
   hs-source-dirs:   exe
   main-is:          Main.hs
+  other-modules:    Paths_odid
+  autogen-modules:  Paths_odid
   build-depends:
     base < 5,
     binary,

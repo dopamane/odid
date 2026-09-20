@@ -23,7 +23,7 @@ genMsg = do
     BasicIDTy -> BasicIDBdy <$> Gen.enumBounded <*> Gen.enumBounded
       <*> BS.fromStrict `fmap` Gen.bytes (Range.singleton 20)
       <*> BS.fromStrict `fmap` Gen.bytes (Range.singleton 3)
-    Location -> Gen.discard
+    Location -> LocBdy <$> Gen.discard
     Auth -> Gen.discard
     SelfIDTy -> SelfIDBdy <$> Gen.enumBounded
       <*> BS.fromStrict `fmap` Gen.bytes (Range.singleton 23)
@@ -32,6 +32,10 @@ genMsg = do
       <*> BS.fromStrict `fmap` Gen.bytes (Range.singleton 20)
       <*> BS.fromStrict `fmap` Gen.bytes (Range.singleton 3)
     Pack -> Gen.discard
+
+genOpStatus :: MonadGen m => m OpStatus
+genOpStatus = Gen.choice $ OpStatusRsvd `fmap` Gen.word8 (Range.linear 0 15) : map pure
+  [Undeclared, Ground, Airborne, Emergency, RemoteIDSystemFailure]
 
 binTrip :: (MonadTest m, Show a, Eq a, Binary a) => a -> m ()
 binTrip d = tripping d encode $ fmap (\(_, _, a) -> a) . decodeOrFail
