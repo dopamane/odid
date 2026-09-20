@@ -531,6 +531,11 @@ instance Binary AuthMsg where
 instance Pretty AuthMsg where
   pretty = viaShow
 
+data AuthType
+  = AuthTyNone | UASIDSig | OpIDSig | MsgSetSig | AuthNRID | SpecificAuth
+  | AuthRsvd Word8 | AuthPriv Word8
+  deriving (Eq, Read, Show)
+
 encodeAlt :: Double -> Word16
 encodeAlt x = round $ (x + 1000) * 2
 
