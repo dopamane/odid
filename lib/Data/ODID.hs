@@ -521,7 +521,9 @@ instance Pretty SysMsg where
     , "Reserved:" <+> pretty (sysRsvd s)
     ]
 
-data AuthMsg = AuthMsg
+data AuthMsg = AuthMsg{authType :: AuthType, pageNum :: Word8
+  , lastPageIdx :: Word8, authLen :: Word8, authTimestamp :: Word32
+  , authSig :: ByteString}
   deriving (Eq, Read, Show)
 
 instance Binary AuthMsg where
