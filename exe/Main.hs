@@ -36,7 +36,7 @@ parser = hsubparser $ mconcat
   ]
 
 msgParser :: Parser Msg
-msgParser = basicIDParser <|> selfIDParser <|> opIDParser
+msgParser = basicIDParser <|> locationParser <|> selfIDParser <|> opIDParser
 
 basicIDParser :: Parser Msg
 basicIDParser = parserOptionGroup "Basic ID" $ fmap (Msg $ MsgHdr 2 BasicIDTy) $
@@ -81,3 +81,80 @@ pad n s = BS.take n $ BSC.pack s <> BS.replicate n 0x00
 fileArg :: Parser String
 fileArg = strArgument $ metavar "FILE" <> completer (bashCompleter "file")
   <> help "Optional binary input file otherwise stream STDIN."
+
+locationParser :: Parser Msg
+locationParser = parserOptionGroup "Location" $ fmap (Msg (MsgHdr 2 Location) . LocBdy) $
+  LocMsg <$> opStatusParser <*> switch (long "flag-rsvd" <> help "Reserved flag")
+    <*> flag AboveTakeoff AGL (long "agl" <> help "Height type")
+    <*> switch (long "dir" <> help "E/W direction segment switch. >=180 active otherwise <180")
+    <*> switch (long "mult" <> help "Speed multiplier. x0.75 active otherwise x0.25")
+    <*> option auto (long "track-dir" <> help "Track direction 0-359 deg.")
+    <*> option auto (long "speed" <> help "Ground speed m/s")
+    <*> option auto (long "vert-speed" <> help "Vertical speed m/s")
+    <*> option auto (long "lat" <> help "Latitude")
+    <*> option auto (long "lon" <> help "Longitude")
+    <*> option auto (long "pres-alt" <> help "Pressure altitude")
+    <*> option auto (long "geo-alt" <> help "Geodetic altitude")
+    <*> option auto (long "height") <*> vertAccParser "vert-acc"
+    <*> horizAccParser <*> vertAccParser "baro-acc" <*> speedAccParser
+    <*> option auto (long "timestamp") <*> option auto (long "tstamp-acc-rsvd")
+    <*> option auto (long "tstamp-acc") <*> option auto (long "loc-rsvd")
+
+opStatusParser :: Parser OpStatus
+opStatusParser = asum
+  [ flag' Undeclared $ long "undeclared"
+  , flag' Ground $ long "ground"
+  , flag' Airborne $ long "airborne"
+  , flag' Emergency $ long "emergency"
+  , flag' RemoteIDSystemFailure $ long "failure" <> help "Remote ID system failure"
+  , option auto $ long "op-rsvd" <> help "Reserved"
+  ]
+
+vertAccParser :: String -> Parser VertAcc
+vertAccParser s = asum
+  [ flag' VertAccGTE150M $ long (s ++ "-gte-150") <> help (show $ pretty VertAccGTE150M)
+  , flag' VertAccLT150M $ long (s ++ "-lt-150") <> help (show $ pretty VertAccLT150M)
+  , flag' VertAccLT45M $ long (s ++ "-lt-45") <> help (show $ pretty VertAccLT45M)
+  , flag' VertAccLT25M $ long (s ++ "-lt-25") <> help (show $ pretty VertAccLT25M)
+  , flag' VertAccLT10M $ long (s ++ "-lt-10") <> help (show $ pretty VertAccLT10M)
+  , flag' VertAccLT3M $ long (s ++ "-lt-3") <> help (show $ pretty VertAccLT3M)
+  , flag' VertAccLT1M $ long (s ++ "-lt-1") <> help (show $ pretty VertAccLT1M)
+  , fmap VertAccRsvd $ option auto $ long "vacc-rsvd" <> help "Reserved 7-15"
+  ]
+
+horizAccParser :: Parser HorizAcc
+horizAccParser = asum
+  [ fmap readAcc $ option auto $ long "horiz-acc" <> help "Horizontal accuracy m"
+  , fmap HorizAccRsvd $ option auto $ long "horiz-acc-rsvd"
+      <> help "Horizontal accuracy reserved value"
+  ]
+  where
+    readAcc :: Double -> HorizAcc
+    readAcc d
+      | d < 1 = LT1M
+      | d < 3 = LT3M
+      | d < 10 = LT10M
+      | d < 30 = LT30M
+      | d < 92.6 = LT005NM
+      | d < 185.2 = LT01NM
+      | d < 555.6 = LT03NM
+      | d < 926 = LT05NM
+      | d < 1852 = LT1NM
+      | d < 3704 = LT2NM
+      | d < 7408 = LT4NM
+      | d < 18520 = LT10NM
+      | otherwise = GT10NM
+
+speedAccParser :: Parser SpeedAcc
+speedAccParser = asum
+  [ fmap readAcc $ option auto $ long "speed-acc"
+  , fmap SpeedAccRsvd $ option auto $ long "speed-acc-rsvd"
+  ]
+  where
+    readAcc :: Double -> SpeedAcc
+    readAcc s
+      | s < 0.3 = LT03MS
+      | s < 1 = LT1MS
+      | s < 3 = LT3MS
+      | s < 10 = LT10MS
+      | otherwise = GTE10MS
