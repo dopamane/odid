@@ -538,6 +538,17 @@ data AuthType
   | AuthRsvd Word8 | AuthPriv Word8
   deriving (Eq, Read, Show)
 
+data AuthPage = AuthPage{authPageType :: AuthType, authPageNum :: Word8
+  , authPageSig :: ByteString}
+  deriving (Eq, Read, Show)
+
+instance Binary AuthPage where
+  get = getWord8 >>= \b ->
+    let ty = undefined
+        num = undefined
+    in AuthPage ty num <$> getLazyByteString 23
+  put = undefined
+
 encodeAlt :: Double -> Word16
 encodeAlt x = round $ (x + 1000) * 2
 
