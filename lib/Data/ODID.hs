@@ -521,29 +521,12 @@ instance Pretty SysMsg where
     , "Reserved:" <+> pretty (sysRsvd s)
     ]
 
-data AuthMsg = AuthMsg{authType :: AuthType, pageNum :: Word8
-  , lastPageIdx :: Word8, authLen :: Word8, authTimestamp :: Word32
-  , authSig :: ByteString}
+data AuthMsg = AuthPage0 AuthType Word8 Word8 Word8 Word32 ByteString
+  | AuthPageN AuthType Word8 ByteString
   deriving (Eq, Read, Show)
 
 instance Binary AuthMsg where
-  get = undefined
-  put = undefined
-
-instance Pretty AuthMsg where
-  pretty = viaShow
-
-data AuthType
-  = AuthNone | UASIDSig | OpIDSig | MsgSetSig | AuthNRID | SpecificAuth
-  | AuthRsvd Word8 | AuthPriv Word8
-  deriving (Eq, Read, Show)
-
-data AuthPage = AuthPage{authPageType :: AuthType, authPageNum :: Word8
-  , authPageSig :: ByteString}
-  deriving (Eq, Read, Show)
-
-instance Binary AuthPage where
-  get = getWord8 >>= \b ->
+  get = getWord8 >>= \b -> do
     let ty = case b `shiftR` 4 of
           0 -> AuthNone
           1 -> UASIDSig
@@ -553,9 +536,22 @@ instance Binary AuthPage where
           5 -> SpecificAuth
           n | n >= 6 && n <= 9 -> AuthRsvd n
             | otherwise -> AuthPriv n
-        num = undefined
-    in AuthPage ty num <$> getLazyByteString 23
-  put = undefined
+        pge = b .&. 0xF
+    if pge == 0
+      then AuthPage0 ty pge <$> getWord8 <*> getWord8 <*> getWord32le
+             <*> getLazyByteString 17
+      else AuthPageN ty pge <$> getLazyByteString 23
+
+  put (AuthPage0 ty pge lpi l ts sig) = undefined
+  put (AuthPageN ty pge sig) = undefined
+
+instance Pretty AuthMsg where
+  pretty = viaShow
+
+data AuthType
+  = AuthNone | UASIDSig | OpIDSig | MsgSetSig | AuthNRID | SpecificAuth
+  | AuthRsvd Word8 | AuthPriv Word8
+  deriving (Eq, Read, Show)
 
 encodeAlt :: Double -> Word16
 encodeAlt x = round $ (x + 1000) * 2
