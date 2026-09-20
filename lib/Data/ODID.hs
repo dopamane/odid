@@ -563,7 +563,15 @@ data AuthType
   deriving (Eq, Read, Show)
 
 instance Pretty AuthType where
-  pretty = viaShow
+  pretty t = case t of
+    AuthNone -> "None"
+    UASIDSig -> "UAS ID Signature"
+    OpIDSig -> "Operator ID Signature"
+    MsgSetSig -> "Message Set Signature"
+    AuthNRID -> "Auth by Network Remote ID"
+    SpecificAuth -> "Specific Auth"
+    AuthRsvd r -> "Reserved" <+> pretty r
+    AuthPriv p -> "Private" <+> pretty p
 
 writeAuthType :: AuthType -> Word8
 writeAuthType ty = case ty of
