@@ -534,7 +534,7 @@ instance Pretty AuthMsg where
   pretty = viaShow
 
 data AuthType
-  = AuthTyNone | UASIDSig | OpIDSig | MsgSetSig | AuthNRID | SpecificAuth
+  = AuthNone | UASIDSig | OpIDSig | MsgSetSig | AuthNRID | SpecificAuth
   | AuthRsvd Word8 | AuthPriv Word8
   deriving (Eq, Read, Show)
 
@@ -544,7 +544,15 @@ data AuthPage = AuthPage{authPageType :: AuthType, authPageNum :: Word8
 
 instance Binary AuthPage where
   get = getWord8 >>= \b ->
-    let ty = undefined
+    let ty = case b `shiftR` 4 of
+          0 -> AuthNone
+          1 -> UASIDSig
+          2 -> OpIDSig
+          3 -> MsgSetSig
+          4 -> AuthNRID
+          5 -> SpecificAuth
+          n | n >= 6 && n <= 9 -> AuthRsvd n
+            | otherwise -> AuthPriv n
         num = undefined
     in AuthPage ty num <$> getLazyByteString 23
   put = undefined
