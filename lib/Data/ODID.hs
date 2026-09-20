@@ -5,7 +5,9 @@ module Data.ODID
   ( Msg(..), MsgHdr(..), MsgType(..), msgTypes, MsgBdy(..)
   , IDType(..), UASID, UAType(..)
   , SysMsg(..), ClassType(..), ClassCat(..), OpLocSrc(..)
-  , AuthMsg(..), LocMsg(..)
+  , AuthMsg(..), AuthType(..)
+  , LocMsg(..), OpStatus(..), HorizAcc(..), VertAcc(..), SpeedAcc(..)
+  , HeightType(..)
   ) where
 
 import Control.Monad
@@ -175,9 +177,6 @@ instance Pretty IDType where
     SpecificSessionID -> "Specific Session ID"
     IDTypeRsvd r -> "Reserved" <+> pretty r
 
--- | Horizontal accuracy. This is the NACp enumeration from ADS-B.
--- Value 12 was added for a more complete range for UAs. 95 % accuracy bound
--- (estimated position uncertainty).
 data HorizAcc
   = GT10NM  -- ^ >=18.52 km (10 NM) or Unknown
   | LT10NM  -- ^ <18.52 km (10 NM)
@@ -219,8 +218,6 @@ instance Pretty ClassCat where
   pretty (ClassCatRsvd n) = "Reserved" <+> pretty n
   pretty c = viaShow c
 
--- | Vertical Accuracy. This is the GVA enumeration from ADS-B. Values 4–6 were added for
--- UAs. 95 % accuracy bound.
 data VertAcc
   = VertAccGTE150M -- ^ >=150 m or Unknown
   | VertAccLT150M-- ^ <150 m
@@ -265,8 +262,6 @@ writeVertAcc vacc = case vacc of
   VertAccLT1M    -> 6
   VertAccRsvd r  -> r
 
--- | Speed Accuracy. This is the same enumeration scale and values from ADS-B NACv.
--- 95 % accuracy bound.
 data SpeedAcc = GTE10MS | LT10MS | LT3MS | LT1MS | LT03MS | SpeedAccRsvd Word8
   deriving (Eq, Read, Show)
 
