@@ -550,12 +550,20 @@ instance Binary AuthMsg where
     putLazyByteString sig
 
 instance Pretty AuthMsg where
-  pretty = viaShow
+  pretty (AuthPage0 ty pge lpi l ts _sig) = vsep
+    ["Type:" <+> pretty ty, "Page:" <+> pretty pge, "Last Page Index:" <+> pretty lpi
+    , "Length:" <+> pretty l, "Timestamp:" <+> pretty ts
+    ]
+  pretty (AuthPageN ty pge _sig) = vsep
+    ["Type:" <+> pretty ty, "Page:" <+> pretty pge]
 
 data AuthType
   = AuthNone | UASIDSig | OpIDSig | MsgSetSig | AuthNRID | SpecificAuth
   | AuthRsvd Word8 | AuthPriv Word8
   deriving (Eq, Read, Show)
+
+instance Pretty AuthType where
+  pretty = viaShow
 
 writeAuthType :: AuthType -> Word8
 writeAuthType ty = case ty of
