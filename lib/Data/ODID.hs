@@ -542,8 +542,12 @@ instance Binary AuthMsg where
              <*> getLazyByteString 17
       else AuthPageN ty pge <$> getLazyByteString 23
 
-  put (AuthPage0 ty pge lpi l ts sig) = undefined
-  put (AuthPageN ty pge sig) = undefined
+  put (AuthPage0 ty pge lpi l ts sig) = do
+    putWord8 $ writeAuthType ty `shiftL` 4 .|. pge .&. 0xF
+    putWord8 lpi <> putWord8 l <> putWord32le ts <> putLazyByteString sig
+  put (AuthPageN ty pge sig) = do
+    putWord8 $ writeAuthType ty `shiftL` 4 .|. pge .&. 0xF
+    putLazyByteString sig
 
 instance Pretty AuthMsg where
   pretty = viaShow
@@ -552,6 +556,17 @@ data AuthType
   = AuthNone | UASIDSig | OpIDSig | MsgSetSig | AuthNRID | SpecificAuth
   | AuthRsvd Word8 | AuthPriv Word8
   deriving (Eq, Read, Show)
+
+writeAuthType :: AuthType -> Word8
+writeAuthType ty = case ty of
+  AuthNone -> 0
+  UASIDSig -> 1
+  OpIDSig  -> 2
+  MsgSetSig -> 3
+  AuthNRID -> 4
+  SpecificAuth -> 5
+  AuthRsvd r -> r
+  AuthPriv p -> p
 
 encodeAlt :: Double -> Word16
 encodeAlt x = round $ (x + 1000) * 2
