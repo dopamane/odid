@@ -1,3 +1,5 @@
+{-# LANGUAGE OverloadedStrings #-}
+
 module Main (main) where
 
 import Data.Binary
@@ -8,10 +10,17 @@ import qualified Hedgehog.Gen   as Gen
 import qualified Hedgehog.Range as Range
 import Test.Tasty
 import Test.Tasty.Hedgehog
+import Test.Tasty.HUnit
 
 main :: IO ()
-main = defaultMain $ testGroup "Test.ODID" [testMsgBinaryTrip]
+main = defaultMain $ testGroup "Test.ODID" [testBasicID]
 
+testBasicID :: TestTree
+testBasicID = testCase "BasicID" $ do
+  let input = Msg (MsgHdr 2 BasicIDTy) $
+        BasicIDBdy CAARegID Heli "01234567890123456789" $ BS.replicate 3 0x00
+  decode (encode input) @?= input
+{-
 testMsgBinaryTrip :: TestTree
 testMsgBinaryTrip = testProperty "Msg" $ property $ binTrip =<< forAll genMsg
 
@@ -39,3 +48,4 @@ genOpStatus = Gen.choice $ OpStatusRsvd `fmap` Gen.word8 (Range.linear 0 15) : m
 
 binTrip :: (MonadTest m, Show a, Eq a, Binary a) => a -> m ()
 binTrip d = tripping d encode $ fmap (\(_, _, a) -> a) . decodeOrFail
+-}

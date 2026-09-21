@@ -53,4 +53,5 @@ test-suite test
     hedgehog,
     odid,
     tasty,
-    tasty-hedgehog
+    tasty-hedgehog,
+    tasty-hunit
