@@ -16,6 +16,7 @@ import Data.Binary.Get
 import Data.Binary.Put
 import Data.Bits
 import Data.ByteString.Lazy (ByteString)
+import qualified Data.ByteString.Lazy as BS
 import qualified Data.ByteString.Lazy.Char8 as BSC
 import Data.Function
 import Data.Int
@@ -151,8 +152,9 @@ data MsgBdy = BasicIDBdy IDType UAType UASID ByteString | LocBdy LocMsg | AuthBd
 
 instance Pretty MsgBdy where
   pretty m = case m of
-    BasicIDBdy idTy uaTy uasid _rsvd -> vsep ["ID Type:" <+> pretty idTy
-      , "UA Type:" <+> pretty uaTy, "UASID:" <+> pretty (BSC.unpack uasid)]
+    BasicIDBdy idTy uaTy uasid rsvd -> vsep ["ID:" <+> pretty idTy
+      , "UA:" <+> pretty uaTy, "UASID:" <+> pretty (BSC.unpack uasid)
+      , "RSVD:" <+> prettyBytes rsvd]
     LocBdy l -> pretty l
     AuthBdy a -> pretty a
     SelfIDBdy ty desc -> vsep ["Type:" <+> pretty ty, "Desc:" <+> pretty (BSC.unpack desc)]
@@ -598,3 +600,8 @@ encSpeed :: Double -> Double
 encSpeed s | s <= 255 * 0.25 = s / 0.25
            | s > 255 * 0.25 && s < 254.25 = (s - (255 * 0.25)) / 0.75
            | otherwise = 254
+
+prettyBytes :: ByteString -> Doc ann
+prettyBytes bs = "0x" <> foldMap prettyByte (BS.unpack bs)
+  where
+    prettyByte b = pretty $ showHex (b `shiftR` 4) "" <> showHex (b .&. 0xF) ""
