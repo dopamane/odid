@@ -2,7 +2,7 @@
 
 -- | Open Drone ID
 module Data.ODID
-  ( Msg(..), MsgHdr(..), MsgType(..), msgTypes, MsgBdy(..)
+  ( Msg(..), MsgHdr(..), MsgType(..), MsgBdy(..)
   , IDType(..), UASID, UAType(..)
   , SysMsg(..), ClassType(..), ClassCat(..), OpLocSrc(..)
   , AuthMsg(..), AuthType(..)
@@ -38,6 +38,7 @@ instance Binary Msg where
     OperatorID -> OpIDBdy <$> get <*> getLazyByteString 20 <*> getLazyByteString 3
     Pack -> get >>= \sz -> get >>= \nm ->
       PackBdy sz nm <$> replicateM (fromIntegral nm) get
+    RsvdTy _ -> RsvdBdy <$> getLazyByteString 24
     where
       getIDType t = case t of
         0 -> IDTypeNone
@@ -64,6 +65,7 @@ instance Binary Msg where
     SysBdy s -> put s
     OpIDBdy t i r -> put t <> putLazyByteString (i <> r)
     PackBdy sz nm ms -> put sz <> put nm <> foldMap put ms
+    RsvdBdy bs -> putLazyByteString bs
 
 instance Pretty Msg where
   pretty (Msg hdr bdy) = vsep [pretty hdr, pretty bdy]
@@ -104,32 +106,33 @@ instance Pretty OpStatus where
     OpStatusRsvd r -> "Reserved" <+> pretty r
     _ -> viaShow s
 
-data MsgType = BasicIDTy | Location | Auth | SelfIDTy | System | OperatorID | Pack
+data MsgType = BasicIDTy | Location | Auth | SelfIDTy | System | OperatorID
+  | Pack | RsvdTy Word8
   deriving (Eq, Read, Show)
-
-msgTypes :: [MsgType]
-msgTypes = [BasicIDTy, Location, Auth, SelfIDTy, System, OperatorID, Pack]
 
 instance Pretty MsgType where
   pretty t = case t of
     BasicIDTy -> "Basic ID"
     SelfIDTy -> "Self ID"
     OperatorID -> "Operator ID"
+    RsvdTy r -> "Reserved" <+> pretty r
     _ -> viaShow t
 
 data MsgHdr = MsgHdr{msgVer :: Word8, msgType :: MsgType}
   deriving (Eq, Read, Show)
 
 instance Binary MsgHdr where
-  get = get >>= \b -> MsgHdr (b .&. 0xF) <$> case b `shiftR` 4 of
-    0x0 -> return BasicIDTy
-    0x1 -> return Location
-    0x2 -> return Auth
-    0x3 -> return SelfIDTy
-    0x4 -> return System
-    0x5 -> return OperatorID
-    0xF -> return Pack
-    n   -> fail $ "cannot read msg type 0x" ++ showHex n ""
+  get = readHdr <$> get
+    where
+      readHdr b = MsgHdr (b .&. 0xF) $ case b `shiftR` 4 of
+        0x0 -> BasicIDTy
+        0x1 -> Location
+        0x2 -> Auth
+        0x3 -> SelfIDTy
+        0x4 -> System
+        0x5 -> OperatorID
+        0xF -> Pack
+        n   -> RsvdTy n
 
   put (MsgHdr v t) = putWord8 $ tNyb `shiftL` 4 .|. v
     where
@@ -141,13 +144,14 @@ instance Binary MsgHdr where
         System     -> 0x4
         OperatorID -> 0x5
         Pack       -> 0xF
+        RsvdTy r   -> r
 
 instance Pretty MsgHdr where
   pretty (MsgHdr v t) = "v" <> pretty v <+> pretty t
 
 data MsgBdy = BasicIDBdy IDType UAType UASID ByteString | LocBdy LocMsg | AuthBdy AuthMsg
   | SelfIDBdy Word8 ByteString | SysBdy SysMsg | OpIDBdy Word8 ByteString ByteString
-  | PackBdy Word8 Word8 [Msg]
+  | PackBdy Word8 Word8 [Msg] | RsvdBdy ByteString
   deriving (Eq, Read, Show)
 
 instance Pretty MsgBdy where
@@ -163,6 +167,7 @@ instance Pretty MsgBdy where
       , "Rsvd:" <+> pretty (BSC.unpack r)]
     PackBdy sz nm ms -> vsep ["Size=" <> pretty sz <+> "Cnt=" <> pretty nm
       , indent 2 $ vsep $ pretty <$> ms]
+    RsvdBdy bs -> "Reserved:" <+> prettyBytes bs
 
 type UASID = ByteString
 
