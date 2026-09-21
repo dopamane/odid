@@ -112,15 +112,19 @@ opStatusParser = asum
 
 vertAccParser :: String -> Parser VertAcc
 vertAccParser s = asum
-  [ flag' VertAccGTE150M $ long (s ++ "-gte-150") <> help (show $ pretty VertAccGTE150M)
-  , flag' VertAccLT150M $ long (s ++ "-lt-150") <> help (show $ pretty VertAccLT150M)
-  , flag' VertAccLT45M $ long (s ++ "-lt-45") <> help (show $ pretty VertAccLT45M)
-  , flag' VertAccLT25M $ long (s ++ "-lt-25") <> help (show $ pretty VertAccLT25M)
-  , flag' VertAccLT10M $ long (s ++ "-lt-10") <> help (show $ pretty VertAccLT10M)
-  , flag' VertAccLT3M $ long (s ++ "-lt-3") <> help (show $ pretty VertAccLT3M)
-  , flag' VertAccLT1M $ long (s ++ "-lt-1") <> help (show $ pretty VertAccLT1M)
-  , fmap VertAccRsvd $ option auto $ long "vacc-rsvd" <> help "Reserved 7-15"
+  [ fmap readAcc $ option auto $ long s <> help "Vertical accuracy m"
+  , fmap VertAccRsvd $ option auto $ long (s ++ "-rsvd") <> help "Reserved low nibble"
   ]
+  where
+    readAcc :: Double -> VertAcc
+    readAcc m
+      | m < 1 = VertAccLT1M
+      | m < 3 = VertAccLT3M
+      | m < 10 = VertAccLT10M
+      | m < 25 = VertAccLT25M
+      | m < 45 = VertAccLT45M
+      | m < 150 = VertAccLT150M
+      | otherwise = VertAccGTE150M
 
 horizAccParser :: Parser HorizAcc
 horizAccParser = asum
@@ -147,8 +151,9 @@ horizAccParser = asum
 
 speedAccParser :: Parser SpeedAcc
 speedAccParser = asum
-  [ fmap readAcc $ option auto $ long "speed-acc"
+  [ fmap readAcc $ option auto $ long "speed-acc" <> help "Speed accuracy m/s"
   , fmap SpeedAccRsvd $ option auto $ long "speed-acc-rsvd"
+      <> help "Reserved speed accuracy low nibble"
   ]
   where
     readAcc :: Double -> SpeedAcc
