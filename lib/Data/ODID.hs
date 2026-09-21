@@ -356,7 +356,7 @@ instance Binary LocMsg where
       lon palt galt hgt vacc hacc baroAcc speedAcc tstmp
       (tstmprsvdacc `shiftR` 4) tstmpacc <$> getWord8
     where
-      decSpeed mul s = if mul then s * 0.25 else s * 0.75 + 255 * 0.25
+      decSpeed mul s = if mul then s * 0.75 + 255 * 0.25 else s * 0.25
 
   put l = do
     putWord8 $ opStatus `shiftL` 4 .|. rsvdFlag `shiftL` 3 .|. htTy `shiftL` 2 .|.

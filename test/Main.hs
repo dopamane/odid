@@ -13,13 +13,26 @@ import Test.Tasty.Hedgehog
 import Test.Tasty.HUnit
 
 main :: IO ()
-main = defaultMain $ testGroup "Test.ODID" [testBasicID]
+main = defaultMain $ testGroup "Test.ODID" [testBasicID, testLocation]
 
 testBasicID :: TestTree
 testBasicID = testCase "BasicID" $ do
   let input = Msg (MsgHdr 2 BasicIDTy) $
         BasicIDBdy CAARegID Heli "01234567890123456789" $ BS.replicate 3 0x00
   decode (encode input) @?= input
+
+testLocation :: TestTree
+testLocation = testCase "Location" $ do
+  let input = Msg (MsgHdr 2 Location) $ LocBdy
+        LocMsg{locOpStatus=Ground, locFlagsRsvd=False, locHeightType=AGL
+          , locFlagsDir=False, locFlagsMult=False, locTrackDir=135
+          , locSpeed=5, locVertSpeed=7.5, locLat=34.0522, locLon=118.2437
+          , locPresAlt=10.5, locGeoAlt=8.5, locHeight=2
+          , locVertAcc=VertAccLT3M, locHorzAcc=LT1M
+          , locBaroAltAcc=VertAccLT3M, locSpeedAcc=LT1MS, locTimestamp=0
+          , locTStampAccRsvd=0, locTStampAcc=0.1, locRsvd=0}
+  decode (encode input) @?= input
+
 {-
 testMsgBinaryTrip :: TestTree
 testMsgBinaryTrip = testProperty "Msg" $ property $ binTrip =<< forAll genMsg
