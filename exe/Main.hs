@@ -3,6 +3,7 @@ module Main (main) where
 import Data.Binary
 import Data.Binary.Get
 import Data.Binary.Put
+import Data.Bits
 import Data.ByteString.Lazy (ByteString)
 import qualified Data.ByteString.Lazy as BS
 import qualified Data.ByteString.Lazy.Char8 as BSC
@@ -47,7 +48,14 @@ basicIDParser :: Parser Msg
 basicIDParser = fmap (Msg $ MsgHdr 2 BasicIDTy) $
   BasicIDBdy <$> parseIDType <*> parseUAType <*> parseUASID <*> parseRsvdBytes
   where
-    parseRsvdBytes = pure $ BS.replicate 3 0x00
+    parseRsvdBytes = fmap readRsvd $ option auto $ long "rsvd" <> value 0
+      <> showDefault <> help "Reserved 3 bytes. Example 0xAABBCC."
+      where
+        readRsvd :: Word32 -> ByteString
+        readRsvd r = BS.pack $ fromIntegral <$> [b0, b1, 0xFF .&. r]
+          where
+            b0 = 0xFF .&. r `shiftR` 16
+            b1 = 0xFF .&. r `shiftR` 8
 
 parseIDType :: Parser IDType
 parseIDType = serialNum <|> caaregid <|> utmuuid <|> specSess <|> pure IDTypeNone
