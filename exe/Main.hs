@@ -49,7 +49,7 @@ basicIDParser = fmap (Msg $ MsgHdr 2 BasicIDTy) $
   BasicIDBdy <$> parseIDType <*> parseUAType <*> parseUASID <*> parseRsvdBytes
   where
     parseRsvdBytes = fmap readRsvd $ option auto $ long "rsvd" <> value 0
-      <> showDefault <> help "Reserved 3 bytes. Example 0xAABBCC."
+      <> showDefault <> help "Reserved 3 bytes. Example 0xaabbcc."
       where
         readRsvd :: Word32 -> ByteString
         readRsvd r = BS.pack $ fromIntegral <$> [b0, b1, 0xFF .&. r]
@@ -58,12 +58,13 @@ basicIDParser = fmap (Msg $ MsgHdr 2 BasicIDTy) $
             b1 = 0xFF .&. r `shiftR` 8
 
 parseIDType :: Parser IDType
-parseIDType = serialNum <|> caaregid <|> utmuuid <|> specSess <|> pure IDTypeNone
-  where
-    serialNum = flag' SerialNum $ long "serial-num" <> help (show $ pretty SerialNum)
-    caaregid = flag' CAARegID $ long "caa-reg-id" <> help (show $ pretty CAARegID)
-    utmuuid = flag' UTMUUID $ long "utm-uuid" <> help (show $ pretty UTMUUID)
-    specSess = flag' SpecificSessionID $ long "session" <> help (show $ pretty SpecificSessionID)
+parseIDType = asum
+  [ flag IDTypeNone IDTypeNone $ long "no-id" <> help "No ID type. Default ID type."
+  , flag' SerialNum $ long "serial-num" <> help (show $ pretty SerialNum)
+  , flag' CAARegID $ long "caa-reg-id" <> help (show $ pretty CAARegID)
+  , flag' UTMUUID $ long "utm-uuid" <> help (show $ pretty UTMUUID)
+  , flag' SpecificSessionID $ long "session" <> help (show $ pretty SpecificSessionID)
+  ]
 
 parseUAType :: Parser UAType
 parseUAType = asum $ map mkFlag [None ..]
@@ -73,7 +74,7 @@ parseUAType = asum $ map mkFlag [None ..]
     mkFlag t = flag' t $ long $ map toLower $ show t
 
 parseUASID :: Parser ByteString
-parseUASID = pad 20 <$> strOption (short 'u' <> long "uasid" <> help "UASID")
+parseUASID = pad 20 <$> strArgument (metavar "UASID")
 
 selfIDParser :: Parser Msg
 selfIDParser = parserOptionGroup "Self ID" $ fmap (Msg $ MsgHdr 2 SelfIDTy) $
