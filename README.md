@@ -13,6 +13,7 @@ Development
 
 ```
 cabal build
+cabal test
 cabal haddock
 cabal install
 ```

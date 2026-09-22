@@ -97,9 +97,9 @@ fileArg = strArgument $ metavar "FILE" <> completer (bashCompleter "file")
   <> help "Optional binary input file otherwise stream STDIN."
 
 locationParser :: Parser Msg
-locationParser = parserOptionGroup "Location" $ fmap (Msg (MsgHdr 2 Location) . LocBdy) $
+locationParser = fmap (Msg (MsgHdr 2 Location) . LocBdy) $
   LocMsg <$> opStatusParser <*> switch (long "flag-rsvd" <> help "Reserved flag")
-    <*> flag AboveTakeoff AGL (long "agl" <> help "Height type")
+    <*> heightTypeParser
     <*> switch (long "dir" <> help "E/W direction segment switch. >=180 active otherwise <180")
     <*> switch (long "mult" <> help "Speed multiplier. x0.75 active otherwise x0.25")
     <*> option auto (long "track-dir" <> help "Track direction 0-359 deg.")
@@ -116,13 +116,18 @@ locationParser = parserOptionGroup "Location" $ fmap (Msg (MsgHdr 2 Location) . 
 
 opStatusParser :: Parser OpStatus
 opStatusParser = asum
-  [ flag' Undeclared $ long "undeclared"
+  [ flag Undeclared Undeclared $ long "undeclared" <> help "Default operational status"
   , flag' Ground $ long "ground"
   , flag' Airborne $ long "airborne"
   , flag' Emergency $ long "emergency"
   , flag' RemoteIDSystemFailure $ long "failure" <> help "Remote ID system failure"
   , option auto $ long "op-rsvd" <> help "Reserved"
   ]
+
+heightTypeParser :: Parser HeightType
+heightTypeParser = flag AboveTakeoff AboveTakeoff
+  (long "above-takeoff" <> help "Default height type") <|>
+  flag' AGL (long "agl" <> help "Above ground level height type")
 
 vertAccParser :: String -> Parser VertAcc
 vertAccParser s = asum
