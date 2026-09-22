@@ -36,10 +36,15 @@ parser = hsubparser $ mconcat
   ]
 
 msgParser :: Parser Msg
-msgParser = basicIDParser <|> locationParser <|> selfIDParser <|> opIDParser
+msgParser = hsubparser $ mconcat
+  [ command "basic" $ info basicIDParser $ progDesc "Basic ID"
+  , command "loc" $ info locationParser $ progDesc "Location/Vector"
+  , command "self" $ info selfIDParser $ progDesc "Self ID"
+  , command "op" $ info opIDParser $ progDesc "Operator ID"
+  ]
 
 basicIDParser :: Parser Msg
-basicIDParser = parserOptionGroup "Basic ID" $ fmap (Msg $ MsgHdr 2 BasicIDTy) $
+basicIDParser = fmap (Msg $ MsgHdr 2 BasicIDTy) $
   BasicIDBdy <$> parseIDType <*> parseUAType <*> parseUASID <*> parseRsvdBytes
   where
     parseRsvdBytes = pure $ BS.replicate 3 0x00
