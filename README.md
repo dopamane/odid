@@ -6,7 +6,7 @@ Usage
 
 ```
 odid --help
-odid w -u foo | odid r
+odid w basic -u foo | odid r
 ```
 
 Development
