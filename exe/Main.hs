@@ -47,15 +47,16 @@ msgParser = hsubparser $ mconcat
 basicIDParser :: Parser Msg
 basicIDParser = fmap (Msg $ MsgHdr 2 BasicIDTy) $
   BasicIDBdy <$> parseIDType <*> parseUAType <*> parseUASID <*> parseRsvdBytes
+
+parseRsvdBytes :: Parser ByteString
+parseRsvdBytes = fmap readRsvd $ option auto $ long "rsvd" <> value 0
+  <> showDefault <> help "Reserved 3 bytes. Example 0xaabbcc."
   where
-    parseRsvdBytes = fmap readRsvd $ option auto $ long "rsvd" <> value 0
-      <> showDefault <> help "Reserved 3 bytes. Example 0xaabbcc."
+    readRsvd :: Word32 -> ByteString
+    readRsvd r = BS.pack $ fromIntegral <$> [b0, b1, 0xFF .&. r]
       where
-        readRsvd :: Word32 -> ByteString
-        readRsvd r = BS.pack $ fromIntegral <$> [b0, b1, 0xFF .&. r]
-          where
-            b0 = 0xFF .&. r `shiftR` 16
-            b1 = 0xFF .&. r `shiftR` 8
+        b0 = 0xFF .&. r `shiftR` 16
+        b1 = 0xFF .&. r `shiftR` 8
 
 parseIDType :: Parser IDType
 parseIDType = asum
@@ -77,17 +78,16 @@ parseUASID :: Parser ByteString
 parseUASID = pad 20 <$> strArgument (metavar "UASID")
 
 selfIDParser :: Parser Msg
-selfIDParser = parserOptionGroup "Self ID" $ fmap (Msg $ MsgHdr 2 SelfIDTy) $
-  SelfIDBdy <$> option auto (short 't' <> value 0 <> help "Description type")
-    <*> pad 23 `fmap` strOption (short 's' <> help "Description")
+selfIDParser = fmap (Msg $ MsgHdr 2 SelfIDTy) $
+  SelfIDBdy <$> option auto (short 't' <> value 0 <> showDefault <> help "Description type")
+    <*> pad 23 `fmap` strArgument (metavar "DESC" <> help "Description")
 
 opIDParser :: Parser Msg
-opIDParser = parserOptionGroup "Operator ID" $ fmap (Msg $ MsgHdr 2 OperatorID) $
-  OpIDBdy <$> parseOpIDTy <*> parseOpID <*> parseOpIDRsvd
+opIDParser = fmap (Msg $ MsgHdr 2 OperatorID) $
+  OpIDBdy <$> parseOpIDTy <*> parseOpID <*> parseRsvdBytes
   where
     parseOpIDTy = option auto $ short 't' <> help "Operator ID type"
     parseOpID = fmap (pad 20) $ strArgument $ metavar "ID" <> help "ASCII text"
-    parseOpIDRsvd = pure $ BS.replicate 3 0x00
 
 pad :: Int64 -> String -> ByteString
 pad n s = BS.take n $ BSC.pack s <> BS.replicate n 0x00
