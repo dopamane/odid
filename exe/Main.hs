@@ -100,9 +100,8 @@ locationParser :: Parser Msg
 locationParser = fmap (Msg (MsgHdr 2 Location) . LocBdy) $
   LocMsg <$> opStatusParser <*> switch (long "flag-rsvd" <> help "Reserved flag")
     <*> heightTypeParser
-    <*> switch (long "dir" <> help "E/W direction segment switch. >=180 active otherwise <180")
-    <*> switch (long "mult" <> help "Speed multiplier. x0.75 active otherwise x0.25")
-    <*> option auto (long "track-dir" <> help "Track direction 0-359 deg.")
+    <*> switch (long "180" <> help "E/W direction segment switch. >=180 active otherwise <180")
+    <*> speedMultParser <*> option auto (long "track-dir" <> help "Track direction 0-359 deg.")
     <*> option auto (long "speed" <> help "Ground speed m/s")
     <*> option auto (long "vert-speed" <> help "Vertical speed m/s")
     <*> option auto (long "lat" <> help "Latitude")
@@ -128,6 +127,10 @@ heightTypeParser :: Parser HeightType
 heightTypeParser = flag AboveTakeoff AboveTakeoff
   (long "above-takeoff" <> help "Default height type") <|>
   flag' AGL (long "agl" <> help "Above ground level height type")
+
+speedMultParser :: Parser Bool
+speedMultParser = flag False False (long "25" <> help "Default speed multiplier x0.25")
+  <|> flag' True (long "75" <> help "Speed multiplier x0.75")
 
 vertAccParser :: String -> Parser VertAcc
 vertAccParser s = asum
