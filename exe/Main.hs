@@ -47,6 +47,7 @@ msgParser = hsubparser $ mconcat
   [ command "basic" $ info basicIDParser $ progDesc "Basic ID"
   , command "loc" $ info locationParser $ progDesc "Location/Vector"
   , command "self" $ info selfIDParser $ progDesc "Self ID"
+  , command "sys" $ info systemParser $ progDesc "System"
   , command "op" $ info opIDParser $ progDesc "Operator ID"
   ]
 
@@ -114,14 +115,19 @@ locationParser = fmap (Msg (MsgHdr 2 Location) . LocBdy) $
     <*> speedMultParser <*> option auto (long "track-dir" <> help "Track direction 0-359 deg.")
     <*> option auto (long "speed" <> help "Ground speed m/s")
     <*> option auto (long "vert-speed" <> help "Vertical speed m/s")
-    <*> option auto (long "lat" <> help "Latitude")
-    <*> option auto (long "lon" <> help "Longitude")
+    <*> parseLat <*> parseLon
     <*> option auto (long "pres-alt" <> help "Pressure altitude")
     <*> option auto (long "geo-alt" <> help "Geodetic altitude")
     <*> option auto (long "height") <*> vertAccParser "vert-acc"
     <*> horizAccParser <*> vertAccParser "baro-acc" <*> speedAccParser
     <*> option auto (long "timestamp") <*> option auto (long "tstamp-acc-rsvd")
     <*> option auto (long "tstamp-acc") <*> option auto (long "loc-rsvd")
+
+parseLat :: Parser Double
+parseLat = option auto $ long "lat" <> help "Latitude"
+
+parseLon :: Parser Double
+parseLon = option auto $ long "lon" <> help "Longitude"
 
 opStatusParser :: Parser OpStatus
 opStatusParser = asum
@@ -195,3 +201,61 @@ speedAccParser = asum
       | s < 3 = LT3MS
       | s < 10 = LT10MS
       | otherwise = GTE10MS
+
+systemParser :: Parser Msg
+systemParser = fmap (Msg (MsgHdr 2 System) . SysBdy) $
+  SysMsg <$> parseClassType <*> parseOpLocSrc <*> parseLat
+    <*> parseLon <*> parseAreaCnt <*> parseAreaRad <*> parseAreaCeil
+    <*> parseAreaFlor <*> parseClassCat <*> parseClassClass
+    <*> parseOpAlt <*> parseSysTimestamp <*> parseSysRsvd
+
+parseClassType :: Parser ClassType
+parseClassType = asum
+  [ flag ClassTypeUndeclared ClassTypeUndeclared $ long "undeclared"
+      <> help "Undeclared class type, default"
+  , flag' EuroUnion $ long "eu" <> help "European Union class type"
+  , option auto $ long "ct-rsvd" <> help "Class type reserved 2-7"
+  ]
+
+parseOpLocSrc :: Parser OpLocSrc
+parseOpLocSrc = asum
+  [ flag Takeoff Takeoff $ long "takeoff" <> help "Default operator location"
+  , flag' Dynamic $ long "dynamic" <> help "Dynamic operator location"
+  , flag' Fixed $ long "fixed" <> help "Fixed operator location"
+  ]
+
+parseAreaCnt :: Parser Word16
+parseAreaCnt = option auto $ long "area-cnt" <> value 1 <> showDefault
+  <> help "Number of aircraft in area, group or formation"
+
+parseAreaRad :: Parser Integer
+parseAreaRad = option auto $ long "area-rad" <> value 0 <> showDefault
+  <> help "Radius in meters of cylindrical area of group or formation"
+
+parseAreaCeil :: Parser Double
+parseAreaCeil = option auto $ long "area-ceil" <> help "Group operations ceiling in meters"
+
+parseAreaFlor :: Parser Double
+parseAreaFlor = option auto $ long "area-flor" <> help "Group operations floor in meters"
+
+parseClassCat :: Parser ClassCat
+parseClassCat = asum
+  [ flag Undefined Undefined $ long "undefined" <> help "Class category undefined. Default."
+  , flag' Open $ long "open" <> help "Class category open"
+  , flag' Specific $ long "specific" <> help "Class category specific"
+  , flag' Certified $ long "certified" <> help "Class category certified"
+  , option auto $ long "cat-rsvd" <> help "Class category reserved"
+  ]
+
+parseClassClass :: Parser Word8
+parseClassClass = option auto $ long "class" <> help "UA Classification class low nibble 0-15"
+
+parseOpAlt :: Parser Double
+parseOpAlt = option auto $ long "op-alt" <> help "Operator altitude meters"
+
+parseSysTimestamp :: Parser Word32
+parseSysTimestamp = option auto $ long "timestamp"
+  <> help "32 bit timestamp in seconds since 00:00:00 01/01/2019"
+
+parseSysRsvd :: Parser Word8
+parseSysRsvd = option auto $ long "sys-rsvd" <> help "Reserved"
