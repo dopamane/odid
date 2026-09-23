@@ -21,6 +21,10 @@ main = do
   case cli of
     ReadODID fM -> print . pretty . runGet (get :: Get Msg) =<< maybe BS.getContents BS.readFile fM
     WriteODID msg fM -> maybe BS.putStr BS.writeFile fM $ runPut $ put msg
+    PackODID fs fM -> do
+      msgs <- mapM decodeFile fs
+      let msg = Msg (MsgHdr 2 Pack) $ PackBdy 0x19 (fromIntegral $ length msgs) msgs
+      maybe BS.putStr BS.writeFile fM $ runPut $ put msg
 
 prefs' :: ParserPrefs
 prefs' = prefs $ showHelpOnError <> showHelpOnEmpty
@@ -29,11 +33,13 @@ pinfo :: String -> ParserInfo CLI
 pinfo v = info (parser <**> simpleVersioner v <**> helper) $ progDesc "Open Drone ID"
 
 data CLI = ReadODID (Maybe String) | WriteODID Msg (Maybe String)
+  | PackODID [String] (Maybe String)
 
 parser :: Parser CLI
 parser = hsubparser $ mconcat
   [ command "r" $ info (ReadODID <$> optional fileArg) $ progDesc "Read ODID data"
   , command "w" $ info (WriteODID <$> msgParser <*> optional fileArg) $ progDesc "Write ODID data"
+  , command "p" $ info (PackODID <$> some fileOpt <*> optional fileArg) $ progDesc "Pack ODID data"
   ]
 
 msgParser :: Parser Msg
@@ -95,6 +101,10 @@ pad n s = BS.take n $ BSC.pack s <> BS.replicate n 0x00
 fileArg :: Parser String
 fileArg = strArgument $ metavar "FILE" <> completer (bashCompleter "file")
   <> help "Optional binary input file otherwise stream STDIN."
+
+fileOpt :: Parser String
+fileOpt = strOption $ short 'm' <> long "msg" <> metavar "FILE"
+  <> help "Message file(s) to pack"
 
 locationParser :: Parser Msg
 locationParser = fmap (Msg (MsgHdr 2 Location) . LocBdy) $
