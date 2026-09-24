@@ -233,10 +233,12 @@ parseAreaRad = option auto $ long "area-rad" <> value 0 <> showDefault
   <> help "Radius in meters of cylindrical area of group or formation"
 
 parseAreaCeil :: Parser Double
-parseAreaCeil = option auto $ long "area-ceil" <> help "Group operations ceiling in meters"
+parseAreaCeil = option auto $ long "area-ceil" <> value 0 <> showDefault
+  <> help "Group operations ceiling in meters"
 
 parseAreaFlor :: Parser Double
-parseAreaFlor = option auto $ long "area-flor" <> help "Group operations floor in meters"
+parseAreaFlor = option auto $ long "area-floor" <> value 0 <> showDefault
+  <> help "Group operations floor in meters"
 
 parseClassCat :: Parser ClassCat
 parseClassCat = asum
@@ -248,14 +250,17 @@ parseClassCat = asum
   ]
 
 parseClassClass :: Parser Word8
-parseClassClass = option auto $ long "class" <> help "UA Classification class low nibble 0-15"
+parseClassClass = option auto $ long "class" <> value 0 <> showDefault
+  <> help "UA Classification class low nibble 0-15"
 
 parseOpAlt :: Parser Double
-parseOpAlt = option auto $ long "op-alt" <> help "Operator altitude meters"
+parseOpAlt = option auto $ long "op-alt" <> value 0 <> showDefault
+  <> help "Operator altitude meters"
 
 parseSysTimestamp :: Parser Word32
-parseSysTimestamp = option auto $ long "timestamp"
+parseSysTimestamp = option auto $ long "timestamp" <> value 0 <> showDefault
   <> help "32 bit timestamp in seconds since 00:00:00 01/01/2019"
 
 parseSysRsvd :: Parser Word8
-parseSysRsvd = option auto $ long "sys-rsvd" <> help "Reserved"
+parseSysRsvd = option auto $ long "sys-rsvd" <> value 0 <> showDefault
+  <> help "Reserved"
