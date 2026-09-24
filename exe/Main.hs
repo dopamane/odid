@@ -46,6 +46,7 @@ msgParser :: Parser Msg
 msgParser = hsubparser $ mconcat
   [ command "basic" $ info basicIDParser $ progDesc "Basic ID"
   , command "loc" $ info locationParser $ progDesc "Location/Vector"
+  , command "auth" $ info authParser $ progDesc "Authentication"
   , command "self" $ info selfIDParser $ progDesc "Self ID"
   , command "sys" $ info systemParser $ progDesc "System"
   , command "op" $ info opIDParser $ progDesc "Operator ID"
@@ -264,3 +265,30 @@ parseSysTimestamp = option auto $ long "timestamp" <> value 0 <> showDefault
 parseSysRsvd :: Parser Word8
 parseSysRsvd = option auto $ long "sys-rsvd" <> value 0 <> showDefault
   <> help "Reserved"
+
+authParser :: Parser Msg
+authParser = fmap (Msg (MsgHdr 2 Auth) . AuthBdy) $
+  AuthMsg <$> parseAuthType <*> parsePageNum <*> optional parsePage0 <*> parseSignature
+  where
+    parseSignature = fmap BS.pack $ some $ argument auto $ metavar "BYTE" <> help "Signature bytes"
+
+parseAuthType :: Parser AuthType
+parseAuthType = asum
+  [ flag AuthNone AuthNone $ long "none" <> help "No auth, default."
+  , flag' UASIDSig $ long "uasid" <> help "UASID signature"
+  , flag' OpIDSig $ long "opid" <> help "Operator ID signature"
+  , flag' MsgSetSig $ long "msg-set" <> help "Message set signature"
+  , flag' AuthNRID $ long "nrid" <> help "Network Remote ID signature"
+  , flag' SpecificAuth $ long "specific" <> help "Specific signature"
+  , option auto $ long "auth-rsvd" <> help "Reserved"
+  , option auto $ long "auth-priv" <> help "Private"
+  ]
+
+parsePageNum :: Parser Word8
+parsePageNum = option auto $ long "page-num" <> help "Page number"
+
+parsePage0 :: Parser (Word8, Word8, Word32)
+parsePage0 = (,,)
+  <$> option auto (long "last-page-idx" <> metavar "WORD8" <> help "Last page index")
+  <*> option auto (long "length" <> metavar "WORD8" <> help "page length")
+  <*> option auto (long "timestamp" <> metavar "WORD32" <> help "Timestamp")

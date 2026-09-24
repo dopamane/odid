@@ -523,8 +523,10 @@ instance Pretty SysMsg where
     , "Reserved:" <+> pretty (sysRsvd s)
     ]
 
-data AuthMsg = AuthPage0 AuthType Word8 Word8 Word8 Word32 ByteString
-  | AuthPageN AuthType Word8 ByteString
+data AuthMsg = AuthMsg AuthType
+  Word8 -- ^ Page number
+  (Maybe (Word8, Word8, Word32)) -- ^ PageN last page index, length, timestamp
+  ByteString -- ^ signature
   deriving (Eq, Read, Show)
 
 instance Binary AuthMsg where
@@ -540,24 +542,25 @@ instance Binary AuthMsg where
             | otherwise -> AuthPriv n
         pge = b .&. 0xF
     if pge == 0
-      then AuthPage0 ty pge <$> getWord8 <*> getWord8 <*> getWord32le
-             <*> getLazyByteString 17
-      else AuthPageN ty pge <$> getLazyByteString 23
+      then do
+        z <- (,,) <$> getWord8 <*> getWord8 <*> getWord32le
+        AuthMsg ty pge (Just z) <$> getLazyByteString 17
+      else AuthMsg ty pge Nothing <$> getLazyByteString 23
 
-  put (AuthPage0 ty pge lpi l ts sig) = do
+  put (AuthMsg ty pge (Just (lpi, l, ts)) sig) = do
     putWord8 $ writeAuthType ty `shiftL` 4 .|. pge .&. 0xF
     putWord8 lpi <> putWord8 l <> putWord32le ts <> putLazyByteString sig
-  put (AuthPageN ty pge sig) = do
+  put (AuthMsg ty pge Nothing sig) = do
     putWord8 $ writeAuthType ty `shiftL` 4 .|. pge .&. 0xF
     putLazyByteString sig
 
 instance Pretty AuthMsg where
-  pretty (AuthPage0 ty pge lpi l ts _sig) = vsep
+  pretty (AuthMsg ty pge (Just (lpi, l, ts)) sig) = vsep
     ["Type:" <+> pretty ty, "Page:" <+> pretty pge, "Last Page Index:" <+> pretty lpi
-    , "Length:" <+> pretty l, "Timestamp:" <+> pretty ts
+    , "Length:" <+> pretty l, "Timestamp:" <+> pretty ts, "Signature:" <+> prettyBytes sig
     ]
-  pretty (AuthPageN ty pge _sig) = vsep
-    ["Type:" <+> pretty ty, "Page:" <+> pretty pge]
+  pretty (AuthMsg ty pge Nothing sig) = vsep
+    ["Type:" <+> pretty ty, "Page:" <+> pretty pge, "Signature:" <+> prettyBytes sig]
 
 data AuthType
   = AuthNone | UASIDSig | OpIDSig | MsgSetSig | AuthNRID | SpecificAuth
