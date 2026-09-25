@@ -5,15 +5,15 @@ module Main (main) where
 import Data.Binary
 import qualified Data.ByteString.Lazy as BS
 import Data.ODID
-import Hedgehog
-import qualified Hedgehog.Gen   as Gen
-import qualified Hedgehog.Range as Range
+--import Hedgehog
+--import qualified Hedgehog.Gen   as Gen
+--import qualified Hedgehog.Range as Range
 import Test.Tasty
-import Test.Tasty.Hedgehog
+--import Test.Tasty.Hedgehog
 import Test.Tasty.HUnit
 
 main :: IO ()
-main = defaultMain $ testGroup "Test.ODID" [testBasicID, testLocation]
+main = defaultMain $ testGroup "Test.ODID" [testBasicID, testLocation, testSelfID]
 
 testBasicID :: TestTree
 testBasicID = testCase "BasicID" $ do
@@ -31,6 +31,11 @@ testLocation = testCase "Location" $ do
           , locVertAcc=VertAccLT3M, locHorzAcc=LT1M
           , locBaroAltAcc=VertAccLT3M, locSpeedAcc=LT1MS, locTimestamp=0
           , locTStampAccRsvd=0, locTStampAcc=0.1, locRsvd=0}
+  decode (encode input) @?= input
+
+testSelfID :: TestTree
+testSelfID = testCase "SelfID" $ do
+  let input = Msg (MsgHdr 2 SelfIDTy) $ SelfIDBdy 1 $ BS.pack [0..22]
   decode (encode input) @?= input
 
 {-
