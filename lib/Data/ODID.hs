@@ -185,7 +185,7 @@ instance Pretty IDType where
     IDTypeRsvd r -> "Reserved" <+> pretty r
 
 data HorizAcc
-  = GT10NM  -- ^ >=18.52 km (10 NM) or Unknown
+  = GT10NM  -- ^ \>=18.52 km (10 NM) or Unknown
   | LT10NM  -- ^ <18.52 km (10 NM)
   | LT4NM   -- ^ <7.408 km (4 NM)
   | LT2NM   -- ^ <3.704 km (2 NM)
@@ -226,7 +226,7 @@ instance Pretty ClassCat where
   pretty c = viaShow c
 
 data VertAcc
-  = VertAccGTE150M -- ^ >=150 m or Unknown
+  = VertAccGTE150M -- ^ \>=150 m or Unknown
   | VertAccLT150M-- ^ <150 m
   | VertAccLT45M -- ^ <45 m
   | VertAccLT25M -- ^ <25 m
