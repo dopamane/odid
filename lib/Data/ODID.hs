@@ -547,11 +547,10 @@ instance Binary AuthMsg where
         AuthMsg ty pge (Just z) <$> getLazyByteString 17
       else AuthMsg ty pge Nothing <$> getLazyByteString 23
 
-  put (AuthMsg ty pge (Just (lpi, l, ts)) sig) = do
+  put (AuthMsg ty pge zM sig) = do
     putWord8 $ writeAuthType ty `shiftL` 4 .|. pge .&. 0xF
-    putWord8 lpi <> putWord8 l <> putWord32le ts <> putLazyByteString sig
-  put (AuthMsg ty pge Nothing sig) = do
-    putWord8 $ writeAuthType ty `shiftL` 4 .|. pge .&. 0xF
+    forM zM $ \(lpi, l, ts) ->
+      putWord8 lpi <> putWord8 l <> putWord32le ts
     putLazyByteString sig
 
 instance Pretty AuthMsg where
