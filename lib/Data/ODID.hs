@@ -549,7 +549,7 @@ instance Binary AuthMsg where
 
   put (AuthMsg ty pge zM sig) = do
     putWord8 $ writeAuthType ty `shiftL` 4 .|. pge .&. 0xF
-    forM zM $ \(lpi, l, ts) ->
+    forM_ zM $ \(lpi, l, ts) ->
       putWord8 lpi <> putWord8 l <> putWord32le ts
     putLazyByteString sig
 
