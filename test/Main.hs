@@ -13,7 +13,8 @@ import Test.Tasty
 import Test.Tasty.HUnit
 
 main :: IO ()
-main = defaultMain $ testGroup "Test.ODID" [testBasicID, testLocation, testSelfID, testOpID]
+main = defaultMain $ testGroup "Test.ODID" [testBasicID, testLocation
+  , testSelfID, testOpID, testSys]
 
 testBasicID :: TestTree
 testBasicID = testCase "BasicID" $ do
@@ -41,6 +42,15 @@ testSelfID = testCase "SelfID" $ do
 testOpID :: TestTree
 testOpID = testCase "OperatorID" $ do
   let input = Msg (MsgHdr 2 OperatorID) $ OpIDBdy 0 (BS.pack [0..19]) $ BS.pack [1, 2, 3]
+  decode (encode input) @?= input
+
+testSys :: TestTree
+testSys = testCase "System" $ do
+  let input = Msg (MsgHdr 2 System) $ SysBdy
+        SysMsg{sysClassType=EuroUnion, sysOpSrcType=Takeoff, sysOpLat=34.0575762
+          , sysOpLon=(-118.2405026), sysArCnt=1, sysArRad=10, sysArCeil=10.5
+          , sysArFloor=10.5, sysClassCat=Open, sysClassClass=3, sysOpAlt=24.5
+          , sysTimestamp=12345, sysRsvd=0xAB}
   decode (encode input) @?= input
 
 {-
