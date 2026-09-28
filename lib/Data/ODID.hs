@@ -524,10 +524,10 @@ instance Pretty SysMsg where
     , "Reserved:" <+> pretty (sysRsvd s)
     ]
 
-data AuthMsg = AuthMsg AuthType
-  Word8 -- ^ Page number
-  (Maybe (Word8, Word8, Word32)) -- ^ PageN last page index, length, timestamp
-  ByteString -- ^ signature
+data AuthMsg = AuthMsg{authType :: AuthType, pageNum :: Word8
+  , pageN :: Maybe (Word8, Word8, Word32) -- ^ last page index, length, timestamp
+  , signature :: ByteString -- ^ signature
+  }
   deriving (Eq, Read, Show)
 
 instance Binary AuthMsg where
