@@ -113,22 +113,26 @@ locationParser = fmap (Msg (MsgHdr 2 Location) . LocBdy) $
   LocMsg <$> opStatusParser <*> switch (long "flag-rsvd" <> help "Reserved flag")
     <*> heightTypeParser
     <*> switch (long "180" <> help "E/W direction segment switch. >=180 active otherwise <180")
-    <*> speedMultParser <*> option auto (long "track-dir" <> help "Track direction 0-359 deg.")
-    <*> option auto (long "speed" <> help "Ground speed m/s")
-    <*> option auto (long "vert-speed" <> help "Vertical speed m/s")
+    <*> speedMultParser
+    <*> option auto (long "track-dir" <> value 0 <> showDefault <> help "Track direction 0-359 deg.")
+    <*> option auto (long "speed" <> value 0 <> showDefault <> help "Ground speed m/s")
+    <*> option auto (long "vert-speed" <> value 0 <> showDefault <> help "Vertical speed m/s")
     <*> parseLat <*> parseLon
-    <*> option auto (long "pres-alt" <> help "Pressure altitude")
-    <*> option auto (long "geo-alt" <> help "Geodetic altitude")
-    <*> option auto (long "height") <*> vertAccParser "vert-acc"
+    <*> option auto (long "pres-alt" <> value 0 <> showDefault <> help "Pressure altitude")
+    <*> option auto (long "geo-alt" <> value 0 <> showDefault <> help "Geodetic altitude")
+    <*> option auto (long "height" <> value 0 <> showDefault <> help "Height m")
+    <*> vertAccParser "vert-acc"
     <*> horizAccParser <*> vertAccParser "baro-acc" <*> speedAccParser
-    <*> option auto (long "timestamp") <*> option auto (long "tstamp-acc-rsvd")
-    <*> option auto (long "tstamp-acc") <*> option auto (long "loc-rsvd")
+    <*> option auto (long "timestamp" <> value 0 <> showDefault <> help "seconds since last hour 0.1 step")
+    <*> option auto (long "tstamp-acc-rsvd" <> value 0 <> showDefault <> help "Reserved")
+    <*> option auto (long "tstamp-acc" <> value 0 <> showDefault <> help "timestamp accuracy 0-1.5 s 0.1 resolution")
+    <*> option auto (long "loc-rsvd" <> value 0 <> showDefault <> help "Reserved")
 
 parseLat :: Parser Double
-parseLat = option auto $ long "lat" <> help "Latitude"
+parseLat = option auto $ long "lat" <> value 0 <> showDefault <> help "Latitude"
 
 parseLon :: Parser Double
-parseLon = option auto $ long "lon" <> help "Longitude"
+parseLon = option auto $ long "lon" <> value 0 <> showDefault <> help "Longitude"
 
 opStatusParser :: Parser OpStatus
 opStatusParser = asum
@@ -151,7 +155,7 @@ speedMultParser = flag False False (long "25" <> help "Default speed multiplier 
 
 vertAccParser :: String -> Parser VertAcc
 vertAccParser s = asum
-  [ fmap readAcc $ option auto $ long s <> help "Vertical accuracy m"
+  [ fmap readAcc $ option auto $ long s <> value 0 <> showDefault <> help "Vertical accuracy m"
   , fmap VertAccRsvd $ option auto $ long (s ++ "-rsvd") <> help "Reserved low nibble"
   ]
   where
@@ -167,7 +171,7 @@ vertAccParser s = asum
 
 horizAccParser :: Parser HorizAcc
 horizAccParser = asum
-  [ fmap readAcc $ option auto $ long "horiz-acc" <> help "Horizontal accuracy m"
+  [ fmap readAcc $ option auto $ long "horiz-acc" <> value 0 <> showDefault <> help "Horizontal accuracy m"
   , fmap HorizAccRsvd $ option auto $ long "horiz-acc-rsvd"
       <> help "Horizontal accuracy reserved value"
   ]
@@ -190,7 +194,7 @@ horizAccParser = asum
 
 speedAccParser :: Parser SpeedAcc
 speedAccParser = asum
-  [ fmap readAcc $ option auto $ long "speed-acc" <> help "Speed accuracy m/s"
+  [ fmap readAcc $ option auto $ long "speed-acc" <> value 0 <> showDefault <> help "Speed accuracy m/s"
   , fmap SpeedAccRsvd $ option auto $ long "speed-acc-rsvd"
       <> help "Reserved speed accuracy low nibble"
   ]
