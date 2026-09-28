@@ -50,8 +50,6 @@ test-suite test
     base < 5,
     binary,
     bytestring,
-    hedgehog,
     odid,
     tasty,
-    tasty-hedgehog,
     tasty-hunit
