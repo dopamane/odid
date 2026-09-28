@@ -151,7 +151,8 @@ instance Pretty MsgHdr where
 
 data MsgBdy = BasicIDBdy IDType UAType UASID ByteString | LocBdy LocMsg | AuthBdy AuthMsg
   | SelfIDBdy Word8 ByteString | SysBdy SysMsg | OpIDBdy Word8 ByteString ByteString
-  | PackBdy Word8 Word8 [Msg] | RsvdBdy ByteString
+  | -- | Message size 0x19, num msgs
+    PackBdy Word8 Word8 [Msg] | RsvdBdy ByteString
   deriving (Eq, Read, Show)
 
 instance Pretty MsgBdy where
