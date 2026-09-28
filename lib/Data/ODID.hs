@@ -526,7 +526,7 @@ instance Pretty SysMsg where
 
 data AuthMsg = AuthMsg{authType :: AuthType, pageNum :: Word8
   , pageN :: Maybe (Word8, Word8, Word32) -- ^ last page index, length, timestamp
-  , signature :: ByteString -- ^ signature
+  , signature :: ByteString
   }
   deriving (Eq, Read, Show)
 

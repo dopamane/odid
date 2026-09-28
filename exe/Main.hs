@@ -271,10 +271,12 @@ parseSysRsvd = option auto $ long "sys-rsvd" <> value 0 <> showDefault
   <> help "Reserved"
 
 authParser :: Parser Msg
-authParser = fmap (Msg (MsgHdr 2 Auth) . AuthBdy) $
+authParser = fmap (Msg (MsgHdr 2 Auth) . AuthBdy . padSig) $
   AuthMsg <$> parseAuthType <*> parsePageNum <*> optional parsePage0 <*> parseSignature
   where
     parseSignature = fmap BS.pack $ some $ argument auto $ metavar "BYTE" <> help "Signature bytes"
+    padSig a | pageNum a == 0 = a{signature=pad 17 $ BSC.unpack $ signature a}
+             | otherwise = a{signature=pad 23 $ BSC.unpack $ signature a}
 
 parseAuthType :: Parser AuthType
 parseAuthType = asum
@@ -289,7 +291,7 @@ parseAuthType = asum
   ]
 
 parsePageNum :: Parser Word8
-parsePageNum = option auto $ long "page-num" <> help "Page number"
+parsePageNum = option auto $ long "page-num" <> value 0 <> showDefault <> help "Page number"
 
 parsePage0 :: Parser (Word8, Word8, Word32)
 parsePage0 = (,,)
