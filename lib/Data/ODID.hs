@@ -185,7 +185,7 @@ instance Pretty IDType where
     IDTypeRsvd r -> "Reserved" <+> pretty r
 
 data HorizAcc
-  = GT10NM  -- ^ >=18.52 km (10 NM) or Unknown
+  = GT10NM  -- ^ \>=18.52 km (10 NM) or Unknown
   | LT10NM  -- ^ <18.52 km (10 NM)
   | LT4NM   -- ^ <7.408 km (4 NM)
   | LT2NM   -- ^ <3.704 km (2 NM)
@@ -226,7 +226,7 @@ instance Pretty ClassCat where
   pretty c = viaShow c
 
 data VertAcc
-  = VertAccGTE150M -- ^ >=150 m or Unknown
+  = VertAccGTE150M -- ^ \>=150 m or Unknown
   | VertAccLT150M-- ^ <150 m
   | VertAccLT45M -- ^ <45 m
   | VertAccLT25M -- ^ <25 m
@@ -547,11 +547,10 @@ instance Binary AuthMsg where
         AuthMsg ty pge (Just z) <$> getLazyByteString 17
       else AuthMsg ty pge Nothing <$> getLazyByteString 23
 
-  put (AuthMsg ty pge (Just (lpi, l, ts)) sig) = do
+  put (AuthMsg ty pge zM sig) = do
     putWord8 $ writeAuthType ty `shiftL` 4 .|. pge .&. 0xF
-    putWord8 lpi <> putWord8 l <> putWord32le ts <> putLazyByteString sig
-  put (AuthMsg ty pge Nothing sig) = do
-    putWord8 $ writeAuthType ty `shiftL` 4 .|. pge .&. 0xF
+    forM_ zM $ \(lpi, l, ts) ->
+      putWord8 lpi <> putWord8 l <> putWord32le ts
     putLazyByteString sig
 
 instance Pretty AuthMsg where
