@@ -11,6 +11,7 @@ import Data.Char
 import Data.Int
 import Data.ODID
 import Data.Version
+import Numeric
 import Options.Applicative
 import Paths_odid
 import Prettyprinter
@@ -78,7 +79,7 @@ parseIDType = asum
 parseUAType :: Parser UAType
 parseUAType = asum $ map mkFlag [None ..]
   where
-    mkFlag None = flag None None $ long "none"
+    mkFlag None = flag None None $ long "none" <> help "Default UA type"
     mkFlag GroundObstacle = flag' GroundObstacle $ long "ground-obstacle"
     mkFlag t = flag' t $ long $ map toLower $ show t
 
@@ -274,9 +275,21 @@ authParser :: Parser Msg
 authParser = fmap (Msg (MsgHdr 2 Auth) . AuthBdy . padSig) $
   AuthMsg <$> parseAuthType <*> parsePageNum <*> optional parsePage0 <*> parseSignature
   where
-    parseSignature = fmap BS.pack $ some $ argument auto $ metavar "BYTE" <> help "Signature bytes"
+    parseSignature = option (eitherReader bytes) $ short 's' <> long "sig" <> metavar "BYTES"
+      <> help "Signature bytes base-16. Example: 0x0123cafe"
     padSig a | pageNum a == 0 = a{signature=pad 17 $ BSC.unpack $ signature a}
              | otherwise = a{signature=pad 23 $ BSC.unpack $ signature a}
+
+bytes :: String -> Either String ByteString
+bytes s = BS.pack <$> case s of
+  '0':'x':rest -> go rest
+  _ -> go s
+  where
+    go (h:l:rest) = case readHex [h,l] of
+      [(byte,"")] -> (byte:) <$> go rest
+      _ -> Left $ "cannot read byte 0x" ++ [h,l]
+    go [c] = Left $ "cannot read byte 0x" ++ [c]
+    go [] = Right []
 
 parseAuthType :: Parser AuthType
 parseAuthType = asum
