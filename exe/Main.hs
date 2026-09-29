@@ -87,15 +87,16 @@ parseUASID :: Parser ByteString
 parseUASID = pad 20 <$> strArgument (metavar "UASID")
 
 selfIDParser :: Parser Msg
-selfIDParser = fmap (Msg $ MsgHdr 2 SelfIDTy) $
-  SelfIDBdy <$> option auto (short 't' <> value 0 <> showDefault <> help "Description type")
-    <*> pad 23 `fmap` strArgument (metavar "DESC" <> help "Description")
+selfIDParser = fmap (Msg $ MsgHdr 2 SelfIDTy) $ SelfIDBdy
+  <$> option auto (short 't' <> value 0 <> showDefault <> metavar "WORD8" <> help "Description type")
+  <*> pad 23 `fmap` strArgument (metavar "ASCII" <> help "Description")
 
 opIDParser :: Parser Msg
 opIDParser = fmap (Msg $ MsgHdr 2 OperatorID) $
   OpIDBdy <$> parseOpIDTy <*> parseOpID <*> parseRsvdBytes
   where
-    parseOpIDTy = option auto $ short 't' <> help "Operator ID type"
+    parseOpIDTy = option auto $ short 't' <> value 0 <> showDefault <> metavar "WORD8"
+      <> help "Operator ID type"
     parseOpID = fmap (pad 20) $ strArgument $ metavar "ID" <> help "ASCII text"
 
 pad :: Int64 -> String -> ByteString

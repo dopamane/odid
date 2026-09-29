@@ -165,7 +165,7 @@ instance Pretty MsgBdy where
     SelfIDBdy ty desc -> vsep ["Type:" <+> pretty ty, "Desc:" <+> pretty (BSC.unpack desc)]
     SysBdy s -> pretty s
     OpIDBdy t i r -> vsep ["Type:" <+> pretty t, "ID:" <+> pretty (BSC.unpack i)
-      , "Rsvd:" <+> pretty (BSC.unpack r)]
+      , "Rsvd:" <+> prettyBytes r]
     PackBdy sz nm ms -> vsep ["Size=" <> pretty sz <+> "Cnt=" <> pretty nm
       , indent 2 $ vsep $ pretty <$> ms]
     RsvdBdy bs -> "Reserved:" <+> prettyBytes bs
